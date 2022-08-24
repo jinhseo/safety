@@ -3,7 +3,7 @@ import rospy
 import ros_numpy
 import numpy as np
 import message_filters as mf
-from std_msgs.msg import String, Header, Float64
+from std_msgs.msg import String, Header, Float64, Bool
 from sensor_msgs.msg import PointCloud2
 from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import Point, Quaternion, Vector3
@@ -15,7 +15,11 @@ class Safety:
         self.frame_id = frame_id
         self.rate = rospy.Rate(pub_rate)
 
-        self.pub = rospy.Publisher('target_safety_zone', PointCloud2, queue_size=10)
+        self.pub_zone = rospy.Publisher('target_safety_zone', PointCloud2, queue_size=10)
+        self.pub_front = rospy.Publisher('front_zone', Bool, queue_size=10)
+        self.pub_left = rospy.Publisher('left_zone', Bool, queue_size=10)
+        self.pub_right = rospy.Publisher('right_zone', Bool, queue_size=10)
+        self.pub_dist = rospy.Publisher('safety_dist', Float64, queue_size=10)
 
         self.sub_freespace = mf.Subscriber(freespace, PointCloud2)
         self.sub_target_waypoint = mf.Subscriber(target_waypoint, Marker)
@@ -27,8 +31,8 @@ class Safety:
         self.callbacks = []
 
         self.front_h, self.front_w = 15, 3
-        self.left_h, self.left_w = 7, 4
-        self.right_h, self.right_w = 7,4
+        self.left_h, self.left_w = 5, 3
+        self.right_h, self.right_w = 5, 3
 
         self.interval = 5
         self.wp_interval = 5*5
@@ -40,7 +44,7 @@ class Safety:
         self.front_zone = np.concatenate((self.front_X.flatten(), self.front_Y.flatten()), axis=0).reshape(2, self.front_h*self.interval*self.front_w*self.interval)
 
         self.left_x = np.linspace(-self.left_h, 0, self.left_h*self.interval)
-        self.left_y = np.linspace(0, self.left_w/2, self.left_w*self.interval)
+        self.left_y = np.linspace(0, self.left_w, self.left_w*self.interval)
         self.left_X, self.left_Y = np.meshgrid(self.left_x, self.left_y)
         self.left_zone = np.concatenate((self.left_X.flatten(), self.left_Y.flatten()), axis=0).reshape(2, self.left_h*self.interval*self.left_w*self.interval)
 
@@ -97,12 +101,12 @@ class Safety:
 
         zone_x, zone_y = lidar_xyz[front_zone][:,0], lidar_xyz[front_zone][:,1]
 
-        empty_zone = np.round(self.front_zone.T[(distance.cdist(np.array([zone_x,zone_y]).T, self.front_zone.T).min(0) > 1)])
+        empty_zone = np.round(self.front_zone.T[(distance.cdist(np.array([zone_x,zone_y]).T, self.front_zone.T).min(0) >= 1)])
         empty_point = np.unique(empty_zone, axis=0)
         obstacle = np.round(np.dot(np.array([[np.cos(np.pi/2), -np.sin(np.pi/2)], [np.sin(np.pi/2), np.cos(np.pi/2)]]), empty_point.T).T)
 
         if obstacle.shape[0] != 0:
-            obs_dist = distance.cdist(np.array([[0, 0]]), obstacle).min()
+            obs_dist = distance.cdist(np.array([[0, 0]]), obstacle).min() - 2
             obs_ind  = distance.cdist(np.array([[0, 0]]), obstacle).argmin()
             obs_theta = np.rad2deg(np.arctan2(np.array([0,1]), obstacle[distance.cdist(np.array([[0,1]]), obstacle).argmin()]))
             obs_theta[obs_theta >= 180] -= 180
@@ -123,12 +127,12 @@ class Safety:
 
         zone_x, zone_y = lidar_xyz[left_zone][:,0], lidar_xyz[left_zone][:,1]
 
-        empty_zone = np.round(self.left_zone.T[(distance.cdist(np.array([zone_x,zone_y]).T, self.left_zone.T).min(0) > 1)])
+        empty_zone = np.round(self.left_zone.T[(distance.cdist(np.array([zone_x,zone_y]).T, self.left_zone.T).min(0) >= 1)])
         empty_point = np.unique(empty_zone, axis=0)
         obstacle = np.round(np.dot(np.array([[np.cos(np.pi/2), -np.sin(np.pi/2)], [np.sin(np.pi/2), np.cos(np.pi/2)]]), empty_point.T).T)
 
         if obstacle.shape[0] != 0:
-            obs_dist = distance.cdist(np.array([[0, 0]]), obstacle).min()
+            obs_dist = distance.cdist(np.array([[0, 0]]), obstacle).min() - 2
             obs_ind  = distance.cdist(np.array([[0, 0]]), obstacle).argmin()
             obs_theta = np.rad2deg(np.arctan2(np.array([0,1]), obstacle[distance.cdist(np.array([[0,1]]), obstacle).argmin()]))
             obs_theta[obs_theta >= 180] -= 180
@@ -146,12 +150,12 @@ class Safety:
 
         zone_x, zone_y = lidar_xyz[right_zone][:,0], lidar_xyz[right_zone][:,1]
 
-        empty_zone = np.round(self.right_zone.T[(distance.cdist(np.array([zone_x,zone_y]).T, self.right_zone.T).min(0) > 1)])
+        empty_zone = np.round(self.right_zone.T[(distance.cdist(np.array([zone_x,zone_y]).T, self.right_zone.T).min(0) >= 1)])
         empty_point = np.unique(empty_zone, axis=0)
         obstacle = np.round(np.dot(np.array([[np.cos(np.pi/2), -np.sin(np.pi/2)], [np.sin(np.pi/2), np.cos(np.pi/2)]]), empty_point.T).T)
 
         if obstacle.shape[0] != 0:
-            obs_dist = distance.cdist(np.array([[0, 0]]), obstacle).min()
+            obs_dist = distance.cdist(np.array([[0, 0]]), obstacle).min() - 2
             obs_ind  = distance.cdist(np.array([[0, 0]]), obstacle).argmin()
             obs_theta = np.rad2deg(np.arctan2(np.array([0,1]), obstacle[distance.cdist(np.array([[0,1]]), obstacle).argmin()]))
             obs_theta[obs_theta >= 180] -= 180
@@ -240,20 +244,38 @@ class Safety:
             filter_array = np.append(filter_array, right_view)
 
             if obstacle.shape[0] != 0:
-                #print('theta:', round(obs_theta,2))
+                safety_front = False
+                safety_dist = round(obs_dist,2)
                 print('dist:', round(obs_dist,2))
-            elif left_obs.shape[0] != 0:
-                #print('left_theta:', left_theta)
+            else:
+                safety_front = True
+                safety_dist = self.front_h
+            #self.pub_front.publish(safety_front)
+
+            if left_obs.shape[0] != 0:
+                safety_left = False
                 print('left_dist:', left_dist)
-            elif right_obs.shape[0] != 0:
-                #print('right_theta:', right_theta)
+            else:
+                safety_left = True
+            #self.pub_left.publish(safety_left)
+
+            if right_obs.shape[0] != 0:
+                safety_right = False
                 print('right_dist:', right_dist)
             else:
-                print('no obstacle')
+                safety_right = True
+
+            self.pub_front.publish(safety_front)
+            self.pub_left.publish(safety_left)
+            self.pub_right.publish(safety_right)
+            self.pub_dist.publish(safety_dist)
+
+            #print('no obstacle')
             out_msg = ros_numpy.point_cloud2.array_to_pointcloud2(lidar_pc[filter_array])
             out_msg.header.frame_id = self.frame_id
 
-            self.pub.publish(out_msg)
+            self.pub_zone.publish(out_msg)
+            #import IPython; IPython.embed()
 
 if __name__ == '__main__':
     rospy.init_node('freespace_vis_v3', anonymous=True)
