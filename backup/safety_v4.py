@@ -3,15 +3,16 @@ import rospy
 import ros_numpy
 import numpy as np
 import message_filters as mf
-from std_msgs.msg import String, Header, Float64, Bool
+from std_msgs.msg import String, Header, Float64, Bool, MultiArrayDimension, MultiArrayLayout, ByteMultiArray
 from sensor_msgs.msg import PointCloud2
 from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import Point, Quaternion, Vector3
 from scipy.spatial import distance
 from novatel_gps_msgs.msg import NovatelHeading2
+from ackermann_msgs.msg import AckermannDriveStamped
 
 class Safety:
-    def __init__(self, pub_rate, freespace, target_waypoint, waypoint, car, points_ring, heading_v2, frame_id):
+    def __init__(self, pub_rate, freespace, target_waypoint, waypoint, car, points_ring, heading_v2, can_data, frame_id):
         self.frame_id = frame_id
         self.rate = rospy.Rate(pub_rate)
 
@@ -21,40 +22,54 @@ class Safety:
         self.pub_right = rospy.Publisher('right_zone', Bool, queue_size=10)
         self.pub_dist = rospy.Publisher('safety_dist', Float64, queue_size=10)
 
+        self.pub_pc_zone = rospy.Publisher('waypoint_zone', PointCloud2, queue_size=10)
+
+        self.pub_array = rospy.Publisher('safety', ByteMultiArray, queue_size=10)
+
         self.sub_freespace = mf.Subscriber(freespace, PointCloud2)
         self.sub_target_waypoint = mf.Subscriber(target_waypoint, Marker)
         self.sub_waypoint = mf.Subscriber(waypoint, Marker)
         self.sub_car_waypoint = mf.Subscriber(car, Marker)
         self.sub_points_ring = mf.Subscriber(points_ring, MarkerArray)
         self.sub_heading_v2 = mf.Subscriber(heading_v2, Float64)
+        self.sub_can_data = mf.Subscriber(can_data, AckermannDriveStamped)
+
         self.subs = []
         self.callbacks = []
 
-        self.front_h, self.front_w = 15, 3
+        self.front_h, self.front_w = 10, 3
         self.left_h, self.left_w = 5, 3
         self.right_h, self.right_w = 5, 3
 
-        self.interval = 5
-        self.wp_interval = 5*5
-        self.radius = 1**2
+        self.interval = 10
+        self.wp_interval = 5
+        self.radius = 0.5**2
 
-        self.front_x = np.linspace(0, self.front_h, self.front_h*self.interval)
+        self.front_offset = 2
+        self.front_x = np.linspace(self.front_offset, self.front_offset+self.front_h, self.front_h*self.interval)
         self.front_y = np.linspace(-self.front_w/2, self.front_w/2, self.front_w*self.interval)
         self.front_X, self.front_Y = np.meshgrid(self.front_x, self.front_y)
         self.front_zone = np.concatenate((self.front_X.flatten(), self.front_Y.flatten()), axis=0).reshape(2, self.front_h*self.interval*self.front_w*self.interval)
 
-        self.left_x = np.linspace(-self.left_h, 0, self.left_h*self.interval)
+        self.left_x_offset = 1
+        self.left_x = np.linspace(-self.left_h + self.left_x_offset, 0 + self.left_x_offset, self.left_h*self.interval)
         self.left_y = np.linspace(0, self.left_w, self.left_w*self.interval)
         self.left_X, self.left_Y = np.meshgrid(self.left_x, self.left_y)
         self.left_zone = np.concatenate((self.left_X.flatten(), self.left_Y.flatten()), axis=0).reshape(2, self.left_h*self.interval*self.left_w*self.interval)
 
-        self.right_x = np.linspace(-self.right_h, 0, self.right_h *self.interval)
+        self.right_x_offset = 1
+        self.right_x = np.linspace(-self.right_h + self.right_x_offset, 0 + self.right_x_offset, self.right_h *self.interval)
         self.right_y = np.linspace(-self.right_w, 0, self.right_w *self.interval)
         self.right_X, self.right_Y = np.meshgrid(self.right_x, self.right_y)
         self.right_zone = np.concatenate((self.right_X.flatten(), self.right_Y.flatten()), axis=0).reshape(2, self.right_h*self.interval*self.right_w*self.interval)
 
-        subs = [self.sub_target_waypoint, self.sub_waypoint, self.sub_car_waypoint, self.sub_freespace, self.sub_points_ring, self.sub_heading_v2]
-        callbacks = [self.callback_target_waypoint, self.callback_waypoint, self.callback_car_waypoint, self.callback_freespace, self.callback_points_ring, self.callback_heading_v2]
+        self.anti_clock_nt = np.array([[np.cos(np.pi/2), -np.sin(np.pi/2)], [np.sin(np.pi/2), np.cos(np.pi/2)]])
+
+        subs = [self.sub_target_waypoint, self.sub_waypoint, self.sub_car_waypoint, self.sub_freespace,
+                self.sub_points_ring, self.sub_heading_v2, self.sub_can_data]
+        callbacks = [self.callback_target_waypoint, self.callback_waypoint, self.callback_car_waypoint, self.callback_freespace,
+                     self.callback_points_ring, self.callback_heading_v2, self.callback_can_data]
+
 
         for sub, callback in zip(subs, callbacks):
             if sub is not None:
@@ -77,6 +92,8 @@ class Safety:
         self.heading_msg = heading_msg
     def callback_heading_v2(self, heading_v2_msg):
         self.heading_v2_msg = heading_v2_msg
+    def callback_can_data(self, can_data_msg):
+        self.can_data_msg = can_data_msg
 
     def to_narray(self, geometry_msg):
         points, points_x, points_y, points_z = [], [], [], []
@@ -91,7 +108,7 @@ class Safety:
         theta[theta >= 360] -= 360
 
         front_theta = np.logical_and(180 <= theta, theta <= 360)
-        front_zone_x = np.logical_and(0 < front_x, front_x <= self.front_h)
+        front_zone_x = np.logical_and(self.front_offset < front_x, front_x <= self.front_h+self.front_offset)
         front_zone_y = np.logical_and(-self.front_w/2 <= front_y, front_y <= self.front_w/2)
 
         #front_dist = dist < 5
@@ -101,9 +118,9 @@ class Safety:
 
         zone_x, zone_y = lidar_xyz[front_zone][:,0], lidar_xyz[front_zone][:,1]
 
-        empty_zone = np.round(self.front_zone.T[(distance.cdist(np.array([zone_x,zone_y]).T, self.front_zone.T).min(0) >= 1)])
+        empty_zone = np.round(self.front_zone.T[(distance.cdist(np.array([zone_x,zone_y]).T, self.front_zone.T).min(0) >= 0.3)])
         empty_point = np.unique(empty_zone, axis=0)
-        obstacle = np.round(np.dot(np.array([[np.cos(np.pi/2), -np.sin(np.pi/2)], [np.sin(np.pi/2), np.cos(np.pi/2)]]), empty_point.T).T)
+        obstacle = np.round(np.dot(self.anti_clock_nt, empty_point.T).T)
 
         if obstacle.shape[0] != 0:
             obs_dist = distance.cdist(np.array([[0, 0]]), obstacle).min() - 2
@@ -116,20 +133,19 @@ class Safety:
         else:
             obs_theta = -999
             obs_dist  = -999
-            #approx_size = -999
         return front_zone, obstacle, obs_theta, obs_dist
 
     def set_left(self, lidar_xyz, left_x, left_y, theta):
         left_theta = np.logical_and(90 <= theta, theta <= 270)
-        left_zone_x = np.logical_and(-self.left_h <= left_x, left_x < 0)
+        left_zone_x = np.logical_and(-self.left_h + self.left_x_offset <= left_x, left_x < 0 + self.left_x_offset)
         left_zone_y = np.logical_and(0 < left_y, left_y <= self.left_w)
         left_zone = np.where(left_theta * left_zone_x * left_zone_y)[0]
 
         zone_x, zone_y = lidar_xyz[left_zone][:,0], lidar_xyz[left_zone][:,1]
 
-        empty_zone = np.round(self.left_zone.T[(distance.cdist(np.array([zone_x,zone_y]).T, self.left_zone.T).min(0) >= 1)])
+        empty_zone = np.round(self.left_zone.T[(distance.cdist(np.array([zone_x,zone_y]).T, self.left_zone.T).min(0) > 0.3)])
         empty_point = np.unique(empty_zone, axis=0)
-        obstacle = np.round(np.dot(np.array([[np.cos(np.pi/2), -np.sin(np.pi/2)], [np.sin(np.pi/2), np.cos(np.pi/2)]]), empty_point.T).T)
+        obstacle = np.round(np.dot(self.anti_clock_nt, empty_point.T).T)
 
         if obstacle.shape[0] != 0:
             obs_dist = distance.cdist(np.array([[0, 0]]), obstacle).min() - 2
@@ -144,15 +160,15 @@ class Safety:
 
     def set_right(self, lidar_xyz, right_x, right_y, theta):
         right_theta = np.logical_or(np.logical_and(0 <= theta, theta <=90), theta >= 270)
-        right_zone_x = np.logical_and(-self.right_h <= right_x, right_x < 0)
+        right_zone_x = np.logical_and(-self.right_h + self.right_x_offset <= right_x, right_x < 0 + self.right_x_offset)
         right_zone_y = np.logical_and(0 > right_y, right_y >= -self.right_w)
         right_zone = np.where(right_theta * right_zone_x * right_zone_y)[0]
 
         zone_x, zone_y = lidar_xyz[right_zone][:,0], lidar_xyz[right_zone][:,1]
 
-        empty_zone = np.round(self.right_zone.T[(distance.cdist(np.array([zone_x,zone_y]).T, self.right_zone.T).min(0) >= 1)])
+        empty_zone = np.round(self.right_zone.T[(distance.cdist(np.array([zone_x,zone_y]).T, self.right_zone.T).min(0) > 0.3)])
         empty_point = np.unique(empty_zone, axis=0)
-        obstacle = np.round(np.dot(np.array([[np.cos(np.pi/2), -np.sin(np.pi/2)], [np.sin(np.pi/2), np.cos(np.pi/2)]]), empty_point.T).T)
+        obstacle = np.round(np.dot(self.anti_clock_nt, empty_point.T).T)
 
         if obstacle.shape[0] != 0:
             obs_dist = distance.cdist(np.array([[0, 0]]), obstacle).min() - 2
@@ -168,6 +184,7 @@ class Safety:
     def callback(self, *args):
         out_msg = PointCloud2()
         filter_array = np.array([], dtype=np.int64)
+        array_msg = ByteMultiArray()
         for i, callback in enumerate(self.callbacks):
             callback(args[i])
         if self.freespace_msg is not None:
@@ -195,11 +212,13 @@ class Safety:
             heading_vector = np.dot(np.array([[np.cos(heading_degree), np.sin(heading_degree)], [-np.sin(heading_degree), np.cos(heading_degree)]]), np.array([0,1]))
 
             y_axis = heading_vector
-            x_axis = np.dot(np.array([[np.cos(np.pi/2), -np.sin(np.pi/2)], [np.sin(np.pi/2), np.cos(np.pi/2)]]), heading_vector)
+            x_axis = np.dot(self.anti_clock_nt, heading_vector)
             transformed_waypoint = np.dot(target_waypoint, np.array([x_axis,y_axis]))
-            transformed_freespace = np.dot(np.array([[0,1],[-1,0]]), freespace.T).T
+            transformed_freespace = np.dot(self.anti_clock_nt, freespace.T).T
+            #transformed_freespace = np.dot(np.array([[np.cos(np.pi/2), np.sin(np.pi/2)], [-np.sin(np.pi/2), np.cos(np.pi/2)]]), freespace.T).T
+            #transformed_freespace = np.dot(np.array([[0,1],[-1,0]]), freespace.T).T
 
-            #'''
+            '''
             waypoint_zone = []
             for waypoint_x, waypoint_y in transformed_waypoint:
                 theta = np.linspace(0, 2*np.pi, self.wp_interval)
@@ -216,15 +235,22 @@ class Safety:
             for n in range(target_waypoint.shape[0]):
                 min_dist.append(zone_dist[:,self.wp_interval*n:self.wp_interval*(n+1)].min())
             min_dist = np.array(min_dist)
-            #'''
+            #import IPython; IPython.embed()
+            '''
 
-            #min_dist = distance.cdist(transformed_freespace, transformed_waypoint).min(0)
+            min_dist = distance.cdist(transformed_freespace, transformed_waypoint).min(0)
+
+            go_waypoint = np.array([0])
+            #if min_dist.shape[0] != 0:
             go_waypoint = (min_dist < 1).nonzero()[0]
             block_waypoint = (min_dist > 1).nonzero()[0]
 
-            #print(go_waypoint)
-            print("to where:", go_waypoint.max())
-            #print("num:", len(go_waypoint))
+            if go_waypoint.shape[0] != 0:
+                #print(go_waypoint)
+                print("to where:", go_waypoint.max())
+                #print("num:", len(go_waypoint))
+            else:
+                print("nowhere to go")
             ### find waypoint ###
 
             ### safety zone ###
@@ -250,14 +276,12 @@ class Safety:
             else:
                 safety_front = True
                 safety_dist = self.front_h
-            #self.pub_front.publish(safety_front)
 
             if left_obs.shape[0] != 0:
                 safety_left = False
                 print('left_dist:', left_dist)
             else:
                 safety_left = True
-            #self.pub_left.publish(safety_left)
 
             if right_obs.shape[0] != 0:
                 safety_right = False
@@ -274,8 +298,24 @@ class Safety:
             out_msg = ros_numpy.point_cloud2.array_to_pointcloud2(lidar_pc[filter_array])
             out_msg.header.frame_id = self.frame_id
 
+            ### waypoint_zone vis ###
+            '''pc_zone = np.hstack((waypoint_zone, np.full((waypoint_zone.shape[0],1), -1.8)))
+            pc_zone = np.hstack((pc_zone, np.full((waypoint_zone.shape[0],1), 255.)))
+
+            pc_zone.dtype = lidar_pc.dtype
+            pc_zone_msg = ros_numpy.point_cloud2.array_to_pointcloud2(pc_zone.squeeze())
+            pc_zone_msg.header.frame_id = self.frame_id'''
             self.pub_zone.publish(out_msg)
+            #self.pub_pc_zone.publish(pc_zone_msg)
             #import IPython; IPython.embed()
+            array_msg.data = np.array([{'front':safety_front}, {'left':safety_left}, {'right':safety_right}, {'front_dist':safety_dist}])
+
+            self.pub_array.publish(array_msg)
+
+
+            ### speed ###
+            current_speed = self.can_data_msg.drive.speed
+            ### speed ###
 
 if __name__ == '__main__':
     rospy.init_node('freespace_vis_v3', anonymous=True)
@@ -288,7 +328,8 @@ if __name__ == '__main__':
     freespace   = '/os_cloud_node/freespace'
     points_ring = '/os_cloud_node/freespace_vis'
     heading_v2  = '/estimated_yaw'
+    can_data = '/can_data'
 
-    publisher = Safety(publish_rate, freespace, target_waypoint, waypoint, car, points_ring, heading_v2, frame_id)
+    publisher = Safety(publish_rate, freespace, target_waypoint, waypoint, car, points_ring, heading_v2, can_data, frame_id)
 
     rospy.spin()

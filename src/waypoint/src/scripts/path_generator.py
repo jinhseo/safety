@@ -16,6 +16,7 @@ class path_generator():
         self.lon = []
         self.points = []
         # with open('gps_postech_new_bestpos.csv', newline='') as csvfile:
+
         with open('gps_postech_new_bestpos.csv', 'r') as csvfile:
             reader = csv.reader(csvfile, delimiter=',')
             for i, row in enumerate(list(reader)[::self.sampling_rate]):

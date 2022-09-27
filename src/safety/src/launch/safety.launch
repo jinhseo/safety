@@ -1,0 +1,8 @@
+<launch>
+  <arg name="publish_rate"            default="10" />
+  <arg name="frame_id"            default="base_link" />
+  <node name="safety" pkg="safety" type="safety.py">
+    <param name="publish_rate"      type="int"    value="$(arg publish_rate)" />
+    <param name="frame_id"          type="str"    value="$(arg frame_id)" />
+  </node>
+</launch>

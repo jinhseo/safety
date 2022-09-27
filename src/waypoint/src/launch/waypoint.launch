@@ -1,0 +1,4 @@
+<launch>
+  <node name="waypoint" pkg="waypoint" type="waypoint.py" cwd="node">
+  </node>
+</launch>

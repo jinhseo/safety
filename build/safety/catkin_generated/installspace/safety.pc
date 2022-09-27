@@ -1,0 +1,8 @@
+prefix=/home/imlab/Downloads/autonomous/safety_pkg/install
+
+Name: safety
+Description: Description of safety
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 
