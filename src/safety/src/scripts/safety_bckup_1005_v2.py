@@ -82,7 +82,7 @@ class Safety:
         self.traffic_slow_time = 0
         self.traffic_slow_start = False
 
-        self.ped_speed, self.sign_speed, self.car_speed, self.safety_speed = 100, 100, 100, 100
+        self.ped_speed, self.sign_speed, self.car_speed = 100, 100, 100
         self.anti_clock_nt = np.array([[np.cos(np.pi/2), -np.sin(np.pi/2)], [np.sin(np.pi/2), np.cos(np.pi/2)]])
 
         self.cw_node = load_cw(cw_path, 'cross_node_v2.txt')
@@ -184,9 +184,130 @@ class Safety:
         self.sign_speed = target_speed
 
         ### collect detection results ###
+        '''if len(self.detected_obj_1_msg.detections) != 0:
+            for d_object in self.detected_obj_1_msg.detections:
+                if 0 < d_object.results[0].score < 20:
+                    self.ped_1_cam.pop(0)
+                    self.ped_1_move.pop(0)
+                    self.car_1_cam.pop(0)
+                    cam_1_pid = True if d_object.results[0].id == 0 else False
+                    cam_1_cid = True if d_object.results[0].id == 2 else False
+                    self.ped_1_cam.append(cam_1_pid)
+                    self.car_1_cam.append(cam_1_cid)
+                    cam_1_move = round(d_object.bbox.center.x,2) if d_object.results[0].id == 0 else -1
+                    self.ped_1_move.append(cam_1_move)
+        elif len(self.detected_obj_1_msg.detections) == 0:
+            self.ped_1_cam.pop(0)
+            self.ped_1_cam.append(False)
+            self.ped_1_move.pop(0)
+            self.ped_1_move.append(-1)
+            self.car_1_cam.pop(0)
+            self.car_1_cam.append(False)
+        '''
+        '''
+        if len(self.detected_obj_0_msg.detections) != 0:
+            for d_object in self.detected_obj_0_msg.detections:
+                if 0 < d_object.results[0].score < 20:
+                    if d_object.results[0].id == 0:
+                        self.ped_0_cam.pop(0)
+                        self.ped_0_move.pop(0)
+                        self.ped_0_cam.append(True)
+                        self.ped_0_move.append(round(d_object.bbox.center.x, 2))
+                        self.car_0_cam.pop(0)
+                        self.car_0_cam.append(False)
+                    if d_object.results[0].id == 2:
+                        self.car_0_cam.pop(0)
+                        self.car_0_cam.append(True)
+                        self.ped_0_cam.pop(0)
+                        self.ped_0_move.pop(0)
+                        self.ped_0_cam.append(False)
+                        self.ped_0_move.append(-1)
+                else:
+                    self.ped_0_cam.pop(0)
+                    self.ped_0_cam.append(False)
+                    self.ped_0_move.pop(0)
+                    self.ped_0_move.append(-1)
+                    self.car_0_cam.pop(0)
+                    self.car_0_cam.append(False)
+        elif len(self.detected_obj_0_msg.detections) == 0:
+            self.ped_0_cam.pop(0)
+            self.ped_0_cam.append(False)
+            self.ped_0_move.pop(0)
+            self.ped_0_move.append(-1)
+            self.car_0_cam.pop(0)
+            self.car_0_cam.append(False)
+
+        if len(self.detected_obj_1_msg.detections) != 0:
+            for d_object in self.detected_obj_1_msg.detections:
+                if 0 < d_object.results[0].score < 20:
+                    if d_object.results[0].id == 0:
+                        self.ped_1_cam.pop(0)
+                        self.ped_1_move.pop(0)
+                        self.ped_1_cam.append(True)
+                        self.ped_1_move.append(round(d_object.bbox.center.x, 2))
+                        self.car_1_cam.pop(0)
+                        self.car_1_cam.append(False)
+                    elif d_object.results[0].id == 2:
+                        self.car_1_cam.pop(0)
+                        self.car_1_cam.append(True)
+                        self.ped_1_cam.pop(0)
+                        self.ped_1_move.pop(0)
+                        self.ped_1_cam.append(False)
+                        self.ped_1_move.append(-1)
+                else:
+                    self.ped_1_cam.pop(0)
+                    self.ped_1_cam.append(False)
+                    self.ped_1_move.pop(0)
+                    self.ped_1_move.append(-1)
+                    self.car_1_cam.pop(0)
+                    self.car_1_cam.append(False)
+
+        elif len(self.detected_obj_1_msg.detections) == 0:
+            self.ped_1_cam.pop(0)
+            self.ped_1_cam.append(False)
+            self.ped_1_move.pop(0)
+            self.ped_1_move.append(-1)
+            self.car_1_cam.pop(0)
+            self.car_1_cam.append(False)
+
+        if len(self.detected_obj_2_msg.detections) != 0:
+            for d_object in self.detected_obj_2_msg.detections:
+                if 0 < d_object.results[0].score < 20:
+                    if d_object.results[0].id == 0:
+                        self.ped_2_cam.pop(0)
+                        self.ped_2_move.pop(0)
+                        self.ped_2_cam.append(True)
+                        self.ped_2_move.append(round(d_object.bbox.center.x, 2))
+                        self.car_2_cam.pop(0)
+                        self.car_2_cam.append(False)
+                    elif d_object.results[0].id == 2:
+                        self.car_2_cam.pop(0)
+                        self.car_2_cam.append(True)
+                        self.ped_2_cam.pop(0)
+                        self.ped_2_move.pop(0)
+                        self.ped_2_cam.append(False)
+                        self.ped_2_move.append(-1)
+                else:
+                    self.ped_2_cam.pop(0)
+                    self.ped_2_cam.append(False)
+                    self.ped_2_move.pop(0)
+                    self.ped_2_move.append(-1)
+                    self.car_2_cam.pop(0)
+                    self.car_2_cam.append(False)
+        elif len(self.detected_obj_2_msg.detections) == 0:
+            self.ped_2_cam.pop(0)
+            self.ped_2_cam.append(False)
+            self.ped_2_move.pop(0)
+            self.ped_2_move.append(-1)
+            self.car_2_cam.pop(0)
+            self.car_2_cam.append(False)
+        '''
         self.ped_0_cam, self.ped_0_move, self.car_0_cam = generate_windows(self.detected_obj_0_msg, self.ped_0_cam, self.ped_0_move, self.car_0_cam)
         self.ped_1_cam, self.ped_1_move, self.car_1_cam = generate_windows(self.detected_obj_1_msg, self.ped_1_cam, self.ped_1_move, self.car_1_cam)
         self.ped_2_cam, self.ped_2_move, self.car_2_cam = generate_windows(self.detected_obj_2_msg, self.ped_2_cam, self.ped_2_move, self.car_2_cam)
+
+
+
 
         self.ped_all_cam = np.array([np.array(self.ped_0_cam).any(), np.array(self.ped_1_cam).any(), np.array(self.ped_2_cam).any()]).any()
         self.car_all_cam = np.array([np.array(self.car_0_cam).any(), np.array(self.car_1_cam).any(), np.array(self.car_2_cam).any()]).any()
@@ -199,7 +320,10 @@ class Safety:
             self.ped_1_diff = np.array(self.ped_1_move)[np.array(self.ped_1_move) > 0]
             self.ped_2_diff = np.array(self.ped_2_move)[np.array(self.ped_2_move) > 0]
             self.ped_diff = abs(np.diff(self.ped_0_diff)).sum() + abs(np.diff(self.ped_1_diff)).sum() + abs(np.diff(self.ped_2_diff)).sum()
-
+        #print(self.ped_all_move)
+        print(self.ped_0_move)
+        print(self.ped_1_move)
+        print(self.ped_2_move)
         ### missions ###
         if self.freespace_msg is not None and self.target_waypoint_msg.markers:
             lidar_pc = ros_numpy.point_cloud2.pointcloud2_to_array(self.freespace_msg)
@@ -267,16 +391,16 @@ class Safety:
                     print(self.ped_diff)
                     target_speed = self.stop_speed
                     self.ped_stop_start = False
-            if self.ped_stop_to_go and current_time - self.ped_stop_to_go_time < rospy.Time(5).secs:
+            if self.ped_stop_to_go and current_time - self.ped_stop_to_go_time < rospy.Time(3).secs:
                 target_speed = self.orig_speed
                 #print('go for 3 secs')
-            elif self.ped_stop_to_go and current_time - self.ped_stop_to_go_time >= rospy.Time(5).secs:
+            elif self.ped_stop_to_go and current_time - self.ped_stop_to_go_time >= rospy.Time(3).secs:
                 print('reset')
                 self.ped_stop_start, self.ped_stop_to_go = False, False
                 self.ped_stop_time, self.ped_stop_to_go_time = 0, 0
                 self.ped_all_cam, self.ped_all_move = False, False
                 self.ped_diff = 10
-                self.ped_1_cam, self.ped_0_cam, self.ped_2_cam = [False] * 10, [False] * 10, [False] * 10
+                #self.ped_1_cam, self.ped_0_cam, self.ped_2_cam = [False] * 10, [False] * 10, [False] * 10
 
             self.ped_speed = target_speed
 
@@ -333,32 +457,26 @@ class Safety:
             self.car_speed = target_speed
 
             ### safety zone ###
-            x, y = lidar_xyz[:, 0], lidar_xyz[:, 1]
+            '''x, y = lidar_xyz[:, 0], lidar_xyz[:, 1]
             theta = np.rad2deg(np.arctan2(x, y)) + 180 # 0 ~ 360 degrees
             theta = np.round(theta).astype(int)
             theta[theta >= 360] -= 360
             dist = np.sqrt(x ** 2 + y ** 2)
             front_view, obstacle, obs_theta, obs_dist = self.set_front(lidar_xyz, x,y, theta, dist)
-            if 0 < obs_dist <= 10:
-                self.safety_speed = 0
-            else:
-                self.safety_speed = 30.0
 
-            #import IPython; IPython.embed()
-            #safety_zone_msg = ros_numpy.point_cloud2.array_to_pointcloud2(lidar_pc[front_view])
-            #safety_zone_msg.header.frame_id = self.frame_id
-            #self.pub_zone.publish(safety_zone_msg)
-
+            safety_zone_msg = ros_numpy.point_cloud2.array_to_pointcloud2(lidar_pc[front_view])
+            safety_zone_msg.header.frame_id = self.frame_id
+            self.pub_zone.publish(safety_zone_msg)
+            '''
 
             ### publish topics ###
-            #publish_speed = min([self.sign_speed, self.ped_speed, self.car_speed])
-            publish_speed = min([self.sign_speed, self.ped_speed, self.car_speed, self.safety_speed])
+            publish_speed = min([self.sign_speed, self.ped_speed, self.car_speed])
             safety_msg.drive.speed = publish_speed
             safety_msg.drive.jerk  = float(lane_change)
             safety_msg.header.stamp = rospy.Time.now()
             self.pub_safety.publish(safety_msg)
             #print(publish_speed)
-            #print([self.sign_speed, self.ped_speed, self.car_speed])
+            print([self.sign_speed, self.ped_speed, self.car_speed])
         else:
             print('set target waypoint')
 
