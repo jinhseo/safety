@@ -54,7 +54,6 @@ CMAKE_BINARY_DIR = /home/imlab/Downloads/autonomous/safety_pkg/build
 
 # The main recursive "all" target.
 all: gtest/all
-all: lane_refine/all
 all: safety/all
 all: waypoint/all
 all: zone/all
@@ -63,7 +62,6 @@ all: zone/all
 
 # The main recursive "preinstall" target.
 preinstall: gtest/preinstall
-preinstall: lane_refine/preinstall
 preinstall: safety/preinstall
 preinstall: waypoint/preinstall
 preinstall: zone/preinstall
@@ -77,7 +75,6 @@ clean: CMakeFiles/clean_test_results.dir/clean
 clean: CMakeFiles/tests.dir/clean
 clean: CMakeFiles/download_extra_data.dir/clean
 clean: gtest/clean
-clean: lane_refine/clean
 clean: safety/clean
 clean: waypoint/clean
 clean: zone/clean
@@ -142,24 +139,6 @@ gtest/googletest/clean: gtest/googletest/CMakeFiles/gtest.dir/clean
 .PHONY : gtest/googletest/clean
 
 #=============================================================================
-# Directory level rules for directory lane_refine
-
-# Recursive "all" directory target.
-lane_refine/all:
-
-.PHONY : lane_refine/all
-
-# Recursive "preinstall" directory target.
-lane_refine/preinstall:
-
-.PHONY : lane_refine/preinstall
-
-# Recursive "clean" directory target.
-lane_refine/clean: lane_refine/CMakeFiles/_catkin_empty_exported_target.dir/clean
-
-.PHONY : lane_refine/clean
-
-#=============================================================================
 # Directory level rules for directory safety
 
 # Recursive "all" directory target.
@@ -173,7 +152,7 @@ safety/preinstall:
 .PHONY : safety/preinstall
 
 # Recursive "clean" directory target.
-safety/clean:
+safety/clean: safety/CMakeFiles/_catkin_empty_exported_target.dir/clean
 
 .PHONY : safety/clean
 
@@ -458,31 +437,31 @@ gtest/googletest/CMakeFiles/gtest.dir/clean:
 .PHONY : gtest/googletest/CMakeFiles/gtest.dir/clean
 
 #=============================================================================
-# Target rules for target lane_refine/CMakeFiles/_catkin_empty_exported_target.dir
+# Target rules for target safety/CMakeFiles/_catkin_empty_exported_target.dir
 
 # All Build rule for target.
-lane_refine/CMakeFiles/_catkin_empty_exported_target.dir/all:
-	$(MAKE) -f lane_refine/CMakeFiles/_catkin_empty_exported_target.dir/build.make lane_refine/CMakeFiles/_catkin_empty_exported_target.dir/depend
-	$(MAKE) -f lane_refine/CMakeFiles/_catkin_empty_exported_target.dir/build.make lane_refine/CMakeFiles/_catkin_empty_exported_target.dir/build
+safety/CMakeFiles/_catkin_empty_exported_target.dir/all:
+	$(MAKE) -f safety/CMakeFiles/_catkin_empty_exported_target.dir/build.make safety/CMakeFiles/_catkin_empty_exported_target.dir/depend
+	$(MAKE) -f safety/CMakeFiles/_catkin_empty_exported_target.dir/build.make safety/CMakeFiles/_catkin_empty_exported_target.dir/build
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/imlab/Downloads/autonomous/safety_pkg/build/CMakeFiles --progress-num= "Built target _catkin_empty_exported_target"
-.PHONY : lane_refine/CMakeFiles/_catkin_empty_exported_target.dir/all
+.PHONY : safety/CMakeFiles/_catkin_empty_exported_target.dir/all
 
 # Build rule for subdir invocation for target.
-lane_refine/CMakeFiles/_catkin_empty_exported_target.dir/rule: cmake_check_build_system
+safety/CMakeFiles/_catkin_empty_exported_target.dir/rule: cmake_check_build_system
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/imlab/Downloads/autonomous/safety_pkg/build/CMakeFiles 0
-	$(MAKE) -f CMakeFiles/Makefile2 lane_refine/CMakeFiles/_catkin_empty_exported_target.dir/all
+	$(MAKE) -f CMakeFiles/Makefile2 safety/CMakeFiles/_catkin_empty_exported_target.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/imlab/Downloads/autonomous/safety_pkg/build/CMakeFiles 0
-.PHONY : lane_refine/CMakeFiles/_catkin_empty_exported_target.dir/rule
+.PHONY : safety/CMakeFiles/_catkin_empty_exported_target.dir/rule
 
 # Convenience name for target.
-_catkin_empty_exported_target: lane_refine/CMakeFiles/_catkin_empty_exported_target.dir/rule
+_catkin_empty_exported_target: safety/CMakeFiles/_catkin_empty_exported_target.dir/rule
 
 .PHONY : _catkin_empty_exported_target
 
 # clean rule for target.
-lane_refine/CMakeFiles/_catkin_empty_exported_target.dir/clean:
-	$(MAKE) -f lane_refine/CMakeFiles/_catkin_empty_exported_target.dir/build.make lane_refine/CMakeFiles/_catkin_empty_exported_target.dir/clean
-.PHONY : lane_refine/CMakeFiles/_catkin_empty_exported_target.dir/clean
+safety/CMakeFiles/_catkin_empty_exported_target.dir/clean:
+	$(MAKE) -f safety/CMakeFiles/_catkin_empty_exported_target.dir/build.make safety/CMakeFiles/_catkin_empty_exported_target.dir/clean
+.PHONY : safety/CMakeFiles/_catkin_empty_exported_target.dir/clean
 
 #=============================================================================
 # Special targets to cleanup operation of make.

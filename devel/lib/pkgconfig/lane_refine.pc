@@ -1,8 +1,0 @@
-prefix=/home/imlab/Downloads/autonomous/safety_pkg/devel
-
-Name: lane_refine
-Description: Description of lane_refine
-Version: 0.0.0
-Cflags: 
-Libs: -L${prefix}/lib 
-Requires: 

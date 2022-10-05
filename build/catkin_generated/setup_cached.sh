@@ -7,4 +7,6 @@
 # new environment variables
 
 # modified environment variables
+export LD_LIBRARY_PATH='/home/imlab/carla-ros-bridge/catkin_ws/devel/lib:/opt/ros/noetic/lib'
+export PKG_CONFIG_PATH='/home/imlab/carla-ros-bridge/catkin_ws/devel/lib/pkgconfig:/opt/ros/noetic/lib/pkgconfig'
 export PWD='/home/imlab/Downloads/autonomous/safety_pkg/build'

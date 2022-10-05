@@ -1,21 +1,21 @@
 Performing C SOURCE FILE Test CMAKE_HAVE_LIBC_PTHREAD failed with the following output:
 Change Dir: /home/imlab/Downloads/autonomous/safety_pkg/build/CMakeFiles/CMakeTmp
 
-Run Build Command(s):/bin/make cmTC_0cf01/fast && /bin/make -f CMakeFiles/cmTC_0cf01.dir/build.make CMakeFiles/cmTC_0cf01.dir/build
+Run Build Command(s):/bin/make cmTC_76716/fast && /bin/make -f CMakeFiles/cmTC_76716.dir/build.make CMakeFiles/cmTC_76716.dir/build
 make[1]: Entering directory '/home/imlab/Downloads/autonomous/safety_pkg/build/CMakeFiles/CMakeTmp'
-Building C object CMakeFiles/cmTC_0cf01.dir/src.c.o
-/bin/cc   -DCMAKE_HAVE_LIBC_PTHREAD   -o CMakeFiles/cmTC_0cf01.dir/src.c.o   -c /home/imlab/Downloads/autonomous/safety_pkg/build/CMakeFiles/CMakeTmp/src.c
-Linking C executable cmTC_0cf01
-/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_0cf01.dir/link.txt --verbose=1
-/bin/cc  -DCMAKE_HAVE_LIBC_PTHREAD    -rdynamic CMakeFiles/cmTC_0cf01.dir/src.c.o  -o cmTC_0cf01 
-/bin/ld: CMakeFiles/cmTC_0cf01.dir/src.c.o: in function `main':
+Building C object CMakeFiles/cmTC_76716.dir/src.c.o
+/bin/cc   -DCMAKE_HAVE_LIBC_PTHREAD   -o CMakeFiles/cmTC_76716.dir/src.c.o   -c /home/imlab/Downloads/autonomous/safety_pkg/build/CMakeFiles/CMakeTmp/src.c
+Linking C executable cmTC_76716
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_76716.dir/link.txt --verbose=1
+/bin/cc  -DCMAKE_HAVE_LIBC_PTHREAD    -rdynamic CMakeFiles/cmTC_76716.dir/src.c.o  -o cmTC_76716 
+/bin/ld: CMakeFiles/cmTC_76716.dir/src.c.o: in function `main':
 src.c:(.text+0x46): undefined reference to `pthread_create'
 /bin/ld: src.c:(.text+0x52): undefined reference to `pthread_detach'
 /bin/ld: src.c:(.text+0x63): undefined reference to `pthread_join'
 collect2: error: ld returned 1 exit status
-make[1]: *** [CMakeFiles/cmTC_0cf01.dir/build.make:87: cmTC_0cf01] Error 1
+make[1]: *** [CMakeFiles/cmTC_76716.dir/build.make:87: cmTC_76716] Error 1
 make[1]: Leaving directory '/home/imlab/Downloads/autonomous/safety_pkg/build/CMakeFiles/CMakeTmp'
-make: *** [Makefile:121: cmTC_0cf01/fast] Error 2
+make: *** [Makefile:121: cmTC_76716/fast] Error 2
 
 
 Source file was:
@@ -41,18 +41,18 @@ int main(void)
 Determining if the function pthread_create exists in the pthreads failed with the following output:
 Change Dir: /home/imlab/Downloads/autonomous/safety_pkg/build/CMakeFiles/CMakeTmp
 
-Run Build Command(s):/bin/make cmTC_a0879/fast && /bin/make -f CMakeFiles/cmTC_a0879.dir/build.make CMakeFiles/cmTC_a0879.dir/build
+Run Build Command(s):/bin/make cmTC_a1581/fast && /bin/make -f CMakeFiles/cmTC_a1581.dir/build.make CMakeFiles/cmTC_a1581.dir/build
 make[1]: Entering directory '/home/imlab/Downloads/autonomous/safety_pkg/build/CMakeFiles/CMakeTmp'
-Building C object CMakeFiles/cmTC_a0879.dir/CheckFunctionExists.c.o
-/bin/cc   -DCHECK_FUNCTION_EXISTS=pthread_create   -o CMakeFiles/cmTC_a0879.dir/CheckFunctionExists.c.o   -c /usr/share/cmake-3.16/Modules/CheckFunctionExists.c
-Linking C executable cmTC_a0879
-/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_a0879.dir/link.txt --verbose=1
-/bin/cc  -DCHECK_FUNCTION_EXISTS=pthread_create    -rdynamic CMakeFiles/cmTC_a0879.dir/CheckFunctionExists.c.o  -o cmTC_a0879  -lpthreads 
+Building C object CMakeFiles/cmTC_a1581.dir/CheckFunctionExists.c.o
+/bin/cc   -DCHECK_FUNCTION_EXISTS=pthread_create   -o CMakeFiles/cmTC_a1581.dir/CheckFunctionExists.c.o   -c /usr/share/cmake-3.16/Modules/CheckFunctionExists.c
+Linking C executable cmTC_a1581
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_a1581.dir/link.txt --verbose=1
+/bin/cc  -DCHECK_FUNCTION_EXISTS=pthread_create    -rdynamic CMakeFiles/cmTC_a1581.dir/CheckFunctionExists.c.o  -o cmTC_a1581  -lpthreads 
 /bin/ld: cannot find -lpthreads
 collect2: error: ld returned 1 exit status
-make[1]: *** [CMakeFiles/cmTC_a0879.dir/build.make:87: cmTC_a0879] Error 1
+make[1]: *** [CMakeFiles/cmTC_a1581.dir/build.make:87: cmTC_a1581] Error 1
 make[1]: Leaving directory '/home/imlab/Downloads/autonomous/safety_pkg/build/CMakeFiles/CMakeTmp'
-make: *** [Makefile:121: cmTC_a0879/fast] Error 2
+make: *** [Makefile:121: cmTC_a1581/fast] Error 2
 
 
 

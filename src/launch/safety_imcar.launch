@@ -1,0 +1,9 @@
+<launch>
+  <include file="$(find safety)/src/launch/safety.launch">
+    <arg name="publish_rate"            default="10" />
+    <arg name="frame_id"            default="base_link" />
+  </include>
+
+  <include file="$(find waypoint)/src/launch/waypoint.launch">
+  </include>
+</launch>

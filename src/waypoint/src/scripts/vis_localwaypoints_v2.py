@@ -17,7 +17,9 @@ from path_generator import path_generator
 from ackermann_msgs.msg import AckermannDriveStamped
 from math import sin, cos, pi, sqrt
 
-center = proj(36.01300, 129.3198799, 0)
+waypoints = []
+#center = proj(36.01300, 129.3198799, 0)
+center = proj(35.64838, 128.40105, 0)
 center = np.array([center.easting, center.northing, center.altitude])
 
 g_heading = 999
@@ -147,9 +149,9 @@ def callback(gps_sub, can_sub):
 
     ''' start_point_update '''
     g_start_waypoint_index = PG.get_closest_index([point[0], point[1], 0])
-    goal_waypoint_index = int((g_start_waypoint_index + 50) % PG.get_total_waypoints())
+    #goal_waypoint_index = int((g_start_waypoint_index + 50) % PG.get_total_waypoints())
     # rospy.loginfo('goal_waypoint_index: {} '.format(goal_waypoint_index))
-    route_list = PG.generate_path(g_start_waypoint_index, goal_waypoint_index)
+    #route_list = PG.generate_path(g_start_waypoint_index, goal_waypoint_index)
 
     target_points = []
     for i in range(len(route_list)):
@@ -194,11 +196,18 @@ def callback_goalpose(message):
 
     rviz_target_points = utm_to_rviz_points(target_points, 1, 0, 0)
 
+def callback_map_target(message):
+    global waypoints
+    waypoints = []
+    for m in message.markers:
+        waypoints.append([m.points[0].x, m.points[0].y, 8.333])
+
 def get_ros_fnc():
 
     rospy.Subscriber('/heading2', NovatelHeading2, callback_heading)
     rospy.Subscriber('/initialpose', PoseWithCovarianceStamped, callback_initpose)
     rospy.Subscriber('/move_base_simple/goal', PoseStamped, callback_goalpose)
+    rospy.Subscriber('/map/target', MarkerArray, callback_map_target)
 
     gps_sub = message_filters.Subscriber('/fix', NavSatFix)
     can_sub = message_filters.Subscriber('/can_data', AckermannDriveStamped)
@@ -228,7 +237,7 @@ def utm_to_rviz_points(utm_points, R = 1, G = 1, B = 0, marker_size=0.2):
 
 
 if __name__ == '__main__':
-    rviz_points = utm_to_rviz_points(PG.get_points()) # lat, lon, alt
+    #rviz_points = utm_to_rviz_points(PG.get_points()) # lat, lon, alt
     # rospy.loginfo('PG.get_points(): {} '.format(PG.get_points()))
     # rospy.loginfo('rviz_points: {} '.format(rviz_points))
     get_ros_fnc()

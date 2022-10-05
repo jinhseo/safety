@@ -1,4 +1,6 @@
 import numpy as np
+import os
+from geodesy.utm import fromLatLong as proj
 
 front_h, front_w = 10, 3
 left_h,  left_w  = 5, 3
@@ -7,6 +9,9 @@ interval = 10
 front_offset = 2
 left_offset  = 1
 right_offset = 1
+
+center = proj(35.64838, 128.40105, 0)
+center = np.array([center.easting, center.northing, center.altitude])
 
 def generate_front_zone(front_offset, wide_zone):
     if not wide_zone:
@@ -43,3 +48,27 @@ def generate_right_zone(right_offset):
     right_X, right_Y = np.meshgrid(right_x, right_y)
     r_zone = np.concatenate((right_X.flatten(), right_Y.flatten()), axis=0).reshape(2, right_h * interval * right_w * interval)
     return r_zone
+
+def gps_to_utm(latitude, longitude, altitude):
+    pos = proj(latitude, longitude, altitude)
+    pos = np.array([pos.easting, pos.northing, pos.altitude])
+    pos[:2] -= center[:2]
+    return pos
+
+def to_narray(geometry_msg):
+    points, points_x, points_y, points_z = [], [], [], []
+    for msg in geometry_msg:
+        points.append([msg.pose.position.x, msg.pose.position.y, msg.pose.position.z])
+    return np.array(points)
+
+def load_cw(cw_path, cw_txt):
+
+    cross_walk = open(os.path.join(cw_path, cw_txt), 'r')
+    crosswalk_node = cross_walk.readlines()
+    cw_node = []
+    for cw_n in crosswalk_node:
+        lat, long = list(map(float, cw_n.split(',')))
+        cw_utm = gps_to_utm(lat, long, 0)
+        cw_node.append(cw_utm)
+    return np.array(cw_node)
+
