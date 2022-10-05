@@ -316,9 +316,8 @@ class Safety:
                 self.ped_stop_start, self.ped_stop_to_go = False, False
                 self.ped_stop_time, self.ped_stop_to_gotime = 0, 0
                 self.ped_all_cam, self.ped_all_move = False, False
-            self.ped_speed = target_speed
+
             ### car mission ###
-            '''
             p_time = rospy.Time.now().secs
             any_stop = (0 < to_where < 5) and not self.lane_change_start
             #print(any_stop)
@@ -340,8 +339,10 @@ class Safety:
                         p_time = rospy.Time.now().secs
                     else:
                         p_time = rospy.Time.now().secs
-            '''
 
+
+
+            '''
             if 0 < to_where < 5 and not self.lane_change_start:
                 target_speed = self.stop_speed
                 if self.car_all_cam and not self.car_stop_start:
@@ -359,16 +360,43 @@ class Safety:
                 target_speed = self.orig_speed
                 self.car_stop_start = False
 
+            if self.lane_change_start and current_time - self.lane_change_time < rospy.Time(10).secs:
+                target_speed = self.orig_speed
+                lane_change = True
+                print('lane changing')
+            elif self.lane_change_start and current_time - self.lane_change_time >= rospy.Time(10).secs:
+                self.lane_change_start, self.car_stop_start, self.car_all_cam = False, False, False
+                self.car_stop_time, self.lane_change_time = 0, 0
+                self.car_1_cam, self.car_0_cam, self.car_2_cam = [False] * 10, [False] * 10, [False] * 10
+            '''
+            '''
+            if self.car_all_cam and 0 < to_where < 5 and not self.lane_change_start:
+                target_speed = self.stop_speed
+                if not self.car_stop_start:
+                    self.car_stop_time = rospy.Time.now().secs
+                    self.car_stop_start = True
+                    print('car stop start')
+            #if self.car_stop_start and current_time - self.car_stop_time > rospy.Time(10).secs and target_speed != self.orig_speed:
+            if self.car_stop_start and current_time - self.car_stop_time > rospy.Time(10).secs and not self.lane_change_start:
+                target_speed = self.orig_speed
+                lane_change = True
+                self.car_stop_start = False
+                self.lane_change_time = rospy.Time.now().secs
+                self.lane_change_start = True
+                print('lane change start')
+            elif self.car_stop_start and current_time - self.car_stop_time <= rospy.Time(5).secs and not self.lane_change_start:
+                target_speed = self.slow_speed
+                print('slow down')
+
             if self.lane_change_start and current_time - self.lane_change_time < rospy.Time(5).secs:
                 target_speed = self.orig_speed
                 lane_change = True
                 print('lane changing')
             elif self.lane_change_start and current_time - self.lane_change_time >= rospy.Time(5).secs:
-                self.lane_change_start, self.car_stop_start, self.car_all_cam = False, False, False
+                self.lane_change_start = False
+                self.car_all_cam = False
                 self.car_stop_time, self.lane_change_time = 0, 0
-                self.car_1_cam, self.car_0_cam, self.car_2_cam = [False] * 10, [False] * 10, [False] * 10
-            self.car_speed = target_speed
-
+            '''
             ### safety zone ###
             '''x, y = lidar_xyz[:, 0], lidar_xyz[:, 1]
             theta = np.rad2deg(np.arctan2(x, y)) + 180 # 0 ~ 360 degrees
@@ -383,13 +411,12 @@ class Safety:
             '''
 
             ### publish topics ###
-            publish_speed = min([self.sign_speed, self.ped_speed, self.car_speed])
-            safety_msg.drive.speed = publish_speed
+            safety_msg.drive.speed = target_speed
             safety_msg.drive.jerk  = float(lane_change)
             safety_msg.header.stamp = rospy.Time.now()
             self.pub_safety.publish(safety_msg)
 
-            #print([self.sign_speed, self.ped_speed, self.car_speed])
+            print(target_speed)
         else:
             print('set target waypoint')
 
