@@ -92,7 +92,6 @@ def location_to_pose(imcar_location, g_speed, g_steer):
         g_prev_yaw = predicted_yaw
 
     marker_msg = pose_to_marker_msg(ros_pose.pose)
-    marker_msg.header.stamp = rospy.Time.now()
     gps_point_publisher.publish(marker_msg)
     return ros_pose, g_euler_yaw
 

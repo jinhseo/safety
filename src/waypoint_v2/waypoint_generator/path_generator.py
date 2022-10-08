@@ -13,13 +13,13 @@ class path_generator():
 
         self.center = proj(35.64838, 128.40105, 0)
         self.center = np.array([self.center.easting, self.center.northing, self.center.altitude])
-
+        
         self.node_index = 0
         self.G, self.id_map = self.generate_graph(type, crossroad, intersection)
 
         self.points = np.array([self.gps_to_utm(float(lat), float(lon), 0) for (lat, lon) in [self.G.nodes[n]['vertex'] for n in self.G.nodes()]])
         self.dist_heuristic = partial(self.distance_heuristic, self.G)
-
+        
 
     def gps_to_utm(self, latitude, longitude, altitude):
         pos = proj(latitude, longitude, altitude)
@@ -54,16 +54,16 @@ class path_generator():
 
         print('Loading the graph')
         self.load_graph(graph, id_map, type, crossroad, intersection)
-
+            
         # print('Adding custom nodes')
         # self.load_custom(graph, id_map)
         # # # self.add_node_from_text(graph, id_map, 'right33.txt')
-
+        
         # print('Saving the graph')
         # self.store_graph(graph, 'A_4')
 
         return graph, id_map
-
+    
     def add_node_from_text(self, graph, id_map, file_name):
         temp_v = []
         str_v = []
@@ -172,7 +172,7 @@ class path_generator():
     def load_graph(self, graph, id_map, postfix, crossroad, intersection):
         if crossroad:
             cross_lines = []
-            f = open('cross_node_v2.txt', 'rt')
+            f = open('cross_node.txt', 'rt')
             for l in f.read().splitlines():
                 lat, lon = l.split(',')
                 lat, lon = float(lat), float(lon)
@@ -222,7 +222,7 @@ class path_generator():
                     id_map[vertex] = self.node_index
                     self.node_index += 1
                     graph.add_node(id_map[vertex], vertex=vertex, stop=stop)
-
+        
         with open('edge_'+str(postfix)+'.txt', 'r') as f:
             reader = csv.reader(f, delimiter=',')
             for i, row in enumerate(list(reader)):
