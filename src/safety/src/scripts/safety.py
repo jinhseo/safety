@@ -6,7 +6,7 @@ import ros_numpy
 import numpy as np
 import time
 import message_filters as mf
-from std_msgs.msg import String, Header, Float64, Bool, Float64MultiArray
+from std_msgs.msg import String, Header, Float64, Bool, Int64MultiArray
 from vision_msgs.msg import Detection2DArray
 from sensor_msgs.msg import PointCloud2, Image
 from visualization_msgs.msg import Marker, MarkerArray
@@ -27,13 +27,14 @@ CLS =  {0: {'class': 'person',     'color': [220, 20, 60]},
 
 class Safety:
     def __init__(self, pub_rate, freespace, target_waypoint, car,
-                 dist_obj_0, dist_obj_1, dist_obj_2, traffic_sign, cw_path, frame_id):
+                 dist_obj_0, dist_obj_1, dist_obj_2, traffic_sign, cw_path, turns, frame_id):
         self.frame_id = frame_id
         self.rate = rospy.Rate(pub_rate)
 
         self.pub_zone = rospy.Publisher('target_safety_zone', PointCloud2, queue_size=10)
         self.pub_safety = rospy.Publisher('safety', AckermannDriveStamped, queue_size=10)
 
+        self.sub_target_turnpoint = mf.Subscriber(turns, Int64MultiArray)
         self.sub_target_waypoint = mf.Subscriber(target_waypoint, MarkerArray)
         self.sub_car_waypoint = mf.Subscriber(car, Marker)
 
@@ -56,6 +57,7 @@ class Safety:
 
         self.ped_all_cam = False
         self.car_all_cam = False
+        self.disappear = False
 
         self.car_1_cam, self.car_0_cam, self.car_2_cam = [False] * 10, [False] * 10, [False] * 10
         self.traffic_cam = [False] * 10
@@ -69,7 +71,7 @@ class Safety:
 
         self.ped_stop_time, self.ped_stop_to_go_time = 0, 0
         self.ped_stop_start, self.ped_stop_to_go = False, False
-
+        self.ped_disappear = False
         self.car_stop_time, self.lane_change_time = 0, 0
         self.car_stop_start, self.lane_change_start = False, False
 
@@ -81,9 +83,9 @@ class Safety:
 
         self.cw_node = load_cw(cw_path, 'cross_node_v2.txt')
         subs = [self.sub_target_waypoint, self.sub_car_waypoint, self.sub_freespace,
-                self.sub_detected_obj_0, self.sub_detected_obj_1, self.sub_detected_obj_2, self.sub_traffic_sign]
+                self.sub_detected_obj_0, self.sub_detected_obj_1, self.sub_detected_obj_2, self.sub_traffic_sign, self.sub_target_turnpoint]
         callbacks = [self.callback_target_waypoint, self.callback_car_waypoint, self.callback_freespace,
-                     self.callback_detected_obj_0, self.callback_detected_obj_1, self.callback_detected_obj_2, self.callback_traffic_sign]
+                     self.callback_detected_obj_0, self.callback_detected_obj_1, self.callback_detected_obj_2, self.callback_traffic_sign, self.callback_target_turnpoint]
 
         for sub, callback in zip(subs, callbacks):
             if sub is not None:
@@ -93,6 +95,8 @@ class Safety:
         self.ts = mf.ApproximateTimeSynchronizer(self.subs, 10, 0.1, allow_headerless=True)
         self.ts.registerCallback(self.callback)
 
+    def callback_target_turnpoint(self, turn_msg):
+        self.target_turnpoint_msg = turn_msg
     def callback_target_waypoint(self, target_waypoint_msg):
         self.target_waypoint_msg = target_waypoint_msg
     def callback_waypoint(self, waypoint_msg):
@@ -124,26 +128,16 @@ class Safety:
             callback(args[i])
 
         if len(self.traffic_sign_msg.detections) != 0:
-            self.traffic_cam.pop(0)
-            self.traffic_cam.append(True)
+            if self.traffic_sign_msg.detections[0].results[0].score > 0.7 and self.traffic_sign_msg.detections[0].bbox.center.x > 0.5:
+                self.traffic_cam.pop(0)
+                self.traffic_cam.append(True)
+            else:
+                self.traffic_cam.pop(0)
+                self.traffic_cam.append(False)
         elif len(self.traffic_sign_msg.detections) == 0:
             self.traffic_cam.pop(0)
             self.traffic_cam.append(False)
         self.traffic_sign = np.array([self.traffic_cam]).any()
-
-        if self.traffic_sign:
-            target_speed = self.slow_speed
-            if not self.traffic_slow_start:
-                self.traffic_slow_time = rospy.Time.now().secs
-                self.traffic_slow_start = True
-        if self.traffic_slow_start and rospy.Time.now().secs - self.traffic_slow_time < rospy.Time(5).secs:
-            target_speed = self.slow_speed
-        elif self.traffic_slow_start and rospy.Time.now().secs - self.traffic_slow_time >= rospy.Time(5).secs:
-            target_speed = self.orig_speed
-            self.traffic_slow_start, self.traffic_sign = False, False
-            self.traffic_slow_time = 0
-            self.traffic_cam = [False] * 10
-        self.sign_speed = target_speed
 
         ### collect detection results ###
         self.ped_0_cam, self.ped_0_move, self.car_0_cam = generate_windows(self.detected_obj_0_msg, self.ped_0_cam, self.ped_0_move, self.car_0_cam)
@@ -202,7 +196,7 @@ class Safety:
             y = do_transform_pose(y, trans1)
             transformed_cross_waypoints.append([y.pose.position.x, y.pose.position.y])
         transformed_cw = np.array(transformed_cross_waypoints)
-        #print('a')
+
         ### missions ###
         if self.freespace_msg is not None and self.target_waypoint_msg.markers:
             lidar_pc = ros_numpy.point_cloud2.pointcloud2_to_array(self.freespace_msg)
@@ -222,10 +216,12 @@ class Safety:
 
             if near_cws.shape[0] != 0:
                 near_cws_dist = distance.cdist(transformed_cw[near_cws], np.array([[0,0]])).min()
-                if near_cws_dist < 15:
+                if near_cws_dist < 20:
                     self.cw_speed = 15 + int(near_cws_dist)
                 else:
                     self.cw_speed = 30
+            else:
+                self.cw_speed = 30
 
             if (waypoint_dist<1).nonzero()[0].shape[0] != 0:
                 min_dist = round(distance.cdist(np.array([[0,0]]), np.array([transformed_waypoint[(waypoint_dist < 1).nonzero()[0].max()]])), 2)
@@ -251,6 +247,7 @@ class Safety:
             ### pedestrian mission ###
             cw_ped = distance.cdist(freespace, transformed_cw[near_cws]).min(0)
             if cw_ped.shape[0] != 0:
+                #print(cw_ped.max())
                 if cw_ped.max() > 0.3:
                     self.ped_on_cw.pop(0)
                     self.ped_on_cw.append(True)
@@ -260,9 +257,10 @@ class Safety:
             else:
                 self.ped_on_cw.pop(0)
                 self.ped_on_cw.append(False)
-            print(np.array(self.ped_on_cw).any())
+            #import IPython; IPython.embed()
+            self.ped_on_cw_window = (np.array(self.ped_on_cw).nonzero()[0].shape[0] > 3)
 
-            if car_cw_dist < 15 and self.ped_all_cam and np.array(self.ped_on_cw).any():
+            '''if car_cw_dist < 15 and self.ped_all_cam and np.array(self.ped_on_cw).any():
                 target_speed = self.stop_speed
                 if not self.ped_stop_start:
                     self.ped_stop_time = rospy.Time.now().secs
@@ -271,84 +269,72 @@ class Safety:
                 target_speed = self.orig_speed
             else:
                 target_speed = self.orig_speed
+            '''
+            #print(np.array(self.ped_on_cw).any())
+            #print(self.ped_on_cw_window)
+            #print(self.ped_stop_start)
+            if near_cws.shape[0] != 0 and near_cws_dist < 15 and self.ped_all_cam and not self.ped_stop_start:
+                target_speed = self.stop_speed
+                print('stop start')
+                if not self.ped_stop_start:
+                    self.ped_stop_time = rospy.Time.now().secs
+                    self.ped_stop_start = True
+            else:
+                target_speed = self.orig_speed
+            if self.ped_stop_start:
+                if current_time - self.ped_stop_time < 5:
+                    target_speed = self.stop_speed
+                elif current_time - self.ped_stop_time >= 5:
+                    if np.array(self.ped_on_cw).any():
+                        target_speed = self.stop_speed
+                    elif not np.array(self.ped_on_cw).any() and not self.ped_disappear:
+                        target_speed = self.orig_speed
+                        self.ped_stop_to_go_time = rospy.Time.now().secs
+                        self.ped_disappear = True
+            #print(self.ped_stop_start)
+            #print(self.ped_disappear)
+            #print(current_time - self.ped_stop_to_go_time > 5)
+            if self.ped_disappear and current_time - self.ped_stop_to_go_time > 5:
+                self.ped_stop_start = False
+                self.ped_disappear = False
+                self.ped_stop_time = 0
+                self.ped_stop_to_go_time = 0
 
             self.ped_speed = target_speed
 
             ### car mission ###
-            '''
-            p_time = rospy.Time.now().secs
-            any_stop = (0 < to_where < 5) and not self.lane_change_start
-            #print(any_stop)
-            if any_stop:
-                target_speed = self.stop_speed
-                is_car = self.car_all_cam                                       ###TODO: safet_dist and obj_dist
-                if is_car:
-                    if rospy.Time.now().secs - p_time > 5:
-                        self.lane_change_start = True
-                        p_time = rospy.Time.now().secs
-                        print('lane change start')
-                    else:
-                        p_time = rospy.Time.now().secs
-            else:
-                target_speed = self.orig_speed
-                if self.lane_change_start:
-                    if rospy.Time.now().secs - p_time > 3:
-                        self.lane_change_start = False
-                        p_time = rospy.Time.now().secs
-                    else:
-                        p_time = rospy.Time.now().secs
-            '''
-
-            if 0 < min_dist <= 10 and not self.lane_change_start:
+            if 0 < min_dist <= 15 and not self.lane_change_start and self.target_turnpoint_msg.data[0] == 0:
                 target_speed = self.stop_speed
                 if self.car_all_cam and not self.car_stop_start:
                     self.car_stop_time = rospy.Time.now().secs
                     self.car_stop_start = True
-                    #print('car stop start')
                 if self.car_stop_start and current_time - self.car_stop_time > rospy.Time(10).secs:
                     target_speed = self.orig_speed
                     lane_change = True
                     self.car_stop_start = False
                     self.lane_change_time = rospy.Time.now().secs
                     self.lane_change_start = True
-                    #print('lane change start')
             else:
                 target_speed = self.orig_speed
                 self.car_stop_start = False
+                #self.lane_change_start = False
 
-            if self.lane_change_start and current_time - self.lane_change_time < rospy.Time(5).secs:
+            if self.lane_change_start and current_time - self.lane_change_time < rospy.Time(10).secs:
                 target_speed = self.orig_speed
                 lane_change = True
-                #print('lane changing')
-            elif self.lane_change_start and current_time - self.lane_change_time >= rospy.Time(5).secs:
+            elif self.lane_change_start and current_time - self.lane_change_time >= rospy.Time(10).secs:
                 self.lane_change_start, self.car_stop_start, self.car_all_cam = False, False, False
                 self.car_stop_time, self.lane_change_time = 0, 0
                 self.car_1_cam, self.car_0_cam, self.car_2_cam = [False] * 10, [False] * 10, [False] * 10
             self.car_speed = target_speed
 
-            if 0 < min_dist < 15:
+            ### safety speed ###
+            if 0 < min_dist < 15 and self.target_turnpoint_msg.data[0] != 0:
+                self.safety_speed = 30
+            elif 0 < min_dist < 15:
                 self.safety_speed = 15 + int(min_dist)
             else:
                 self.safety_speed = 30
-
-
-            ### safety zone ###
-            '''x, y = lidar_xyz[:, 0], lidar_xyz[:, 1]
-            theta = np.rad2deg(np.arctan2(x, y)) + 180 # 0 ~ 360 degrees
-            theta = np.round(theta).astype(int)
-            theta[theta >= 360] -= 360
-            dist = np.sqrt(x ** 2 + y ** 2)
-            front_view, obstacle, obs_theta, obs_dist = self.set_front(lidar_xyz, x,y, theta, dist)
-            if 0 < obs_dist <= 10:
-                self.safety_speed = 0
-            else:
-                self.safety_speed = 30.0
-            '''
-            #import IPython; IPython.embed()
-            #safety_zone_msg = ros_numpy.point_cloud2.array_to_pointcloud2(lidar_pc[front_view])
-            #safety_zone_msg.header.frame_id = self.frame_id
-            #self.pub_zone.publish(safety_zone_msg)
-
 
             ### publish topics ###
             publish_speed = min([self.sign_speed, self.ped_speed, self.car_speed, self.cw_speed, self.safety_speed])
@@ -356,8 +342,10 @@ class Safety:
             safety_msg.drive.jerk  = float(lane_change)
             safety_msg.header.stamp = rospy.Time.now()
             self.pub_safety.publish(safety_msg)
+            #print(min_dist)
             #print(publish_speed)
-            #print([self.sign_speed, self.ped_speed, self.car_speed])
+            #print(self.target_turnpoint_msg.data)
+            print([self.sign_speed, self.ped_speed, self.car_speed, self.cw_speed, self.safety_speed])
         else:
             print('set target waypoint')
 
@@ -368,6 +356,7 @@ if __name__ == '__main__':
 
     car          = '/imcar/points_marker'
     target_waypoint = '/map/target_update'
+    target_turnpoint = '/map/target_turnpoints'
     freespace   = '/os_cloud_node/freespace'
 
     dist_obj_0 = '/camera0/detected_objects_with_distance'
@@ -380,6 +369,6 @@ if __name__ == '__main__':
     #cw_path = '/home/imlab/Downloads/autonomous/safety_pkg/src/safety'
     cw_path = '/safety/src/safety/src/scripts'
     publisher = Safety(publish_rate, freespace, target_waypoint, car,
-                       dist_obj_0, dist_obj_1, dist_obj_2, traffic_obj, cw_path, frame_id)
+                       dist_obj_0, dist_obj_1, dist_obj_2, traffic_obj, cw_path, target_turnpoint, frame_id)
 
     rospy.spin()
