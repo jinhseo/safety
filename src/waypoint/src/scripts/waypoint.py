@@ -69,7 +69,7 @@ straight_right_points=np.round(np.array([[-212.757304455736,130.3689498147,1.234
 
 target_update_pub = rospy.Publisher("/map/target_update", MarkerArray, queue_size=10)
 turn_update_pub = rospy.Publisher("/map/target_turnpoints", Int64MultiArray, queue_size=10)
-
+turn_ind_update_pub = rospy.Publisher("map/target_turnpoints_ind", Int64MultiArray, queue_size=10)
 def get_target_waypoints(waypoints, current_x, current_y, n):
     closest_len = float('Inf')
     closest_index = 0
@@ -81,7 +81,7 @@ def get_target_waypoints(waypoints, current_x, current_y, n):
             closest_index = i
     end_index = np.min([closest_index + n, len(waypoints)])
 
-    return waypoints[closest_index:end_index], gene_cmd(waypoints)[0][closest_index:end_index]
+    return waypoints[closest_index:end_index], gene_cmd(waypoints)[0][closest_index:end_index], gene_cmd(waypoints)[1][closest_index:end_index]
 
 def gps_to_utm(latitude, longitude, altitude):
     pos = proj(latitude, longitude, altitude)
@@ -145,8 +145,9 @@ def callback_map_target(message):
 def callback(gps_sub):
     out_msg = MarkerArray()
     turn_msg = Int64MultiArray()
+    turn_ind_msg = Int64MultiArray()
     point = gps_to_utm(gps_sub.latitude, gps_sub.longitude, 0)
-    target_waypoints, target_turnpoints = get_target_waypoints(waypoints, point[0], point[1], 20)
+    target_waypoints, target_turnpoints, target_turnind = get_target_waypoints(waypoints, point[0], point[1], 20)
     for target_w in target_waypoints:
         marker = Marker()
         marker.pose.position = Point(x=target_w[0], y=target_w[1], z=target_w[-1])
@@ -160,8 +161,10 @@ def callback(gps_sub):
         out_msg.markers.append(marker)
 
     turn_msg.data = list(target_turnpoints.astype(int))
+    turn_ind_msg.data = list(target_turnind.astype(int))
     target_update_pub.publish(out_msg)
     turn_update_pub.publish(turn_msg)
+    turn_ind_update_pub.publish(turn_ind_msg)
 def getRosFnc():
     rospy.init_node('getRosFnc_main', anonymous=True)
     rospy.Subscriber('/map/target', MarkerArray, callback_map_target)
