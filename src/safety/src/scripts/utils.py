@@ -106,7 +106,7 @@ def generate_windows(detected_obj_msg, ped_cam, ped_move, car_cam):
         car_cam.append(False)
     return ped_cam, ped_move, car_cam
 
-def generate_windows_v2(detected_obj_msg, ped_cam, car_cam):
+def generate_windows_v2(detected_obj_msg, ped_cam, car_cam, on_one_lane):
     if len(detected_obj_msg.detections) != 0:
             for d_object in detected_obj_msg.detections:
                 if 0 < d_object.results[0].score < 20:
@@ -116,10 +116,22 @@ def generate_windows_v2(detected_obj_msg, ped_cam, car_cam):
                         car_cam.pop(0)
                         car_cam.append(False)
                     if d_object.results[0].id == 2:
-                        car_cam.pop(0)
-                        car_cam.append(True)
-                        ped_cam.pop(0)
-                        ped_cam.append(False)
+                        if on_one_lane:
+                            if d_object.bbox.center.x > 0.3 and d_object.bbox.center.x < 0.7:
+                                car_cam.pop(0)
+                                car_cam.append(True)
+                                ped_cam.pop(0)
+                                ped_cam.append(False)
+                            else:
+                                car_cam.pop(0)
+                                car_cam.append(False)
+                                ped_cam.pop(0)
+                                ped_cam.append(False)
+                        else:
+                            car_cam.pop(0)
+                            car_cam.append(True)
+                            ped_cam.pop(0)
+                            ped_cam.append(False)
                 else:
                     ped_cam.pop(0)
                     ped_cam.append(False)

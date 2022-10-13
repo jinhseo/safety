@@ -58,7 +58,6 @@ class Safety:
 
         self.ped_stop_time, self.ped_stop_to_go_time = 0, 0
         self.ped_stop_start, self.ped_stop_to_go = False, False
-        self.ped_disappear = False
         self.car_stop_time, self.lane_change_time = 0, 0
         self.car_stop_start, self.lane_change_start = False, False
 
@@ -69,7 +68,7 @@ class Safety:
         self.from_lane_change = -999
         self.lane_change_pos = 0
         self.cw_node = load_cw(cw_path, 'cross_node_v2.txt')
-        self.one_node = load_cw(cw_path, 'one_lane.txt')
+
         subs = [self.sub_target_waypoint, self.sub_car_waypoint, self.sub_freespace, self.sub_can_data,
                 self.sub_detected_obj_0, self.sub_detected_obj_1, self.sub_detected_obj_2, self.sub_traffic_sign, self.sub_target_turnpoint]
         callbacks = [self.callback_target_waypoint, self.callback_car_waypoint, self.callback_freespace, self.callback_can_data,
@@ -111,6 +110,7 @@ class Safety:
     def to_narray(self, geometry_msg):
         points, points_x, points_y, points_z = [], [], [], []
         for msg in geometry_msg:
+            #points.append([msg.x, msg.y, msg.z])
             points.append([msg.pose.position.x, msg.pose.position.y, msg.pose.position.z])
         return np.array(points)
 
@@ -137,16 +137,12 @@ class Safety:
         self.traffic_sign = np.array([self.traffic_cam]).any()
 
         ### collect detection results ###
-        car_position = np.array([[self.car_waypoint_msg.pose.position.x, self.car_waypoint_msg.pose.position.y, self.car_waypoint_msg.pose.position.z]])[:,:2]
-        if (distance.cdist(car_position, self.one_node[:,:2]) < 3).nonzero()[0].shape[0] != 0:
-            on_one_lane = True
-        else:
-            on_one_lane = False
-        self.ped_0_cam, self.car_0_cam = generate_windows_v2(self.detected_obj_0_msg, self.ped_0_cam, self.car_0_cam, on_one_lane = False)
-        self.ped_1_cam, self.car_1_cam = generate_windows_v2(self.detected_obj_1_msg, self.ped_1_cam, self.car_1_cam, on_one_lane = on_one_lane)
-        self.ped_2_cam, self.car_2_cam = generate_windows_v2(self.detected_obj_2_msg, self.ped_2_cam, self.car_2_cam, on_one_lane = False)
+        self.ped_0_cam, self.car_0_cam = generate_windows_v2(self.detected_obj_0_msg, self.ped_0_cam, self.car_0_cam)
+        self.ped_1_cam, self.car_1_cam = generate_windows_v2(self.detected_obj_1_msg, self.ped_1_cam, self.car_1_cam)
+        self.ped_2_cam, self.car_2_cam = generate_windows_v2(self.detected_obj_2_msg, self.ped_2_cam, self.car_2_cam)
 
         self.ped_all_cam = np.array([np.array(self.ped_0_cam).any(), np.array(self.ped_1_cam).any(), np.array(self.ped_2_cam).any()]).any()
+        #self.ped_all_cam = np.array([np.array(self.ped_0_cam).any(), np.array(self.ped_1_cam).any()]).any()
         self.car_all_cam = np.array([np.array(self.car_0_cam).any(), np.array(self.car_1_cam).any(), np.array(self.car_2_cam).any()]).any()
 
         ### transform ###
@@ -282,12 +278,14 @@ class Safety:
             self.ped_on_cw = np.array(self.ped_on_cw_can).any()
 
             if near_cws.shape[0] != 0:
+                #print(near_cws.shape[0])
                 cw_ahead = 0 < near_cws_dist < 15
+                #print(near_cws_dist)
             else:
                 cw_ahead = False
-            print(self.ped_on_cw)
-            print(self.ped_all_cam)
-            print(cw_ahead)
+            #print(self.ped_on_cw and self.ped_all_cam)
+            #cw_ahead = near_cws_dist < 15 and 0 not in self.target_turnpoint_msg.data
+
             ped_on_ahead_cw = cw_ahead and self.ped_on_cw and self.ped_all_cam
             if ped_on_ahead_cw:
                 target_speed = self.stop_speed
@@ -297,6 +295,8 @@ class Safety:
             elif not np.array(self.ped_on_cw).any() and current_time - self.ped_stop_time > rospy.Time(3).secs:
                 target_speed = self.orig_speed
             else:
+                target_speed = self.orig_speed
+            if self.ped_stop_start and current_time - self.ped_stop_time > 60:
                 target_speed = self.orig_speed
             self.ped_speed = target_speed
 
@@ -332,11 +332,20 @@ class Safety:
                     self.lane_change_pos = 0
                     self.lane_change_start, self.car_stop_start, self.car_all_cam = False, False, False
                     self.car_1_cam, self.car_0_cam, self.car_2_cam = [False] * 10, [False] * 10, [False] * 10
+            #elif self.lane_change_start and current_time - self.lane_change_time < 10:
+            #    target_speed = self.orig_speed
+            #    lane_change = True
+            #    self.car_stop_start = False
+            #elif self.lane_change_start and current_time - self.lane_change_time >= 10:
+            #    self.lane_change_start, self.car_stop_start, self.car_all_cam = False, False, False
+            #    self.car_stop_time, self.lane_change_time = 0, 0
+            #    self.car_1_cam, self.car_0_cam, self.car_2_cam = [False] * 10, [False] * 10, [False] * 10
             else:
                 target_speed = self.orig_speed
                 self.car_stop_start = False
             self.car_speed = target_speed
-
+            print(self.from_lane_change)
+            print(self.lane_goal)
             ### publish topics ###
             publish_speed = min([self.sign_speed, self.ped_speed, self.car_speed, self.cw_speed, self.safety_speed])
             self.voting_speed.pop(0)
