@@ -7,6 +7,7 @@
 # new environment variables
 
 # modified environment variables
-export LD_LIBRARY_PATH='/home/imlab/carla-ros-bridge/catkin_ws/devel/lib:/opt/ros/noetic/lib'
-export PKG_CONFIG_PATH='/home/imlab/carla-ros-bridge/catkin_ws/devel/lib/pkgconfig:/opt/ros/noetic/lib/pkgconfig'
-export PWD='/home/imlab/Downloads/autonomous/safety_pkg/build'
+export CMAKE_PREFIX_PATH="/home/imlab/safety/devel:$CMAKE_PREFIX_PATH"
+export PWD='/home/imlab/safety/build'
+export ROSLISP_PACKAGE_DIRECTORIES="/home/imlab/safety/devel/share/common-lisp:$ROSLISP_PACKAGE_DIRECTORIES"
+export ROS_PACKAGE_PATH="/home/imlab/safety/src:$ROS_PACKAGE_PATH"

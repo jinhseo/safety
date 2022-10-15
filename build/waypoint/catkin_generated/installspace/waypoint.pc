@@ -1,4 +1,4 @@
-prefix=/home/imlab/Downloads/autonomous/safety_pkg/install
+prefix=/home/imlab/safety/install
 
 Name: waypoint
 Description: Description of waypoint

@@ -1,2 +1,2 @@
 - setup-file:
-    local-name: /home/imlab/Downloads/autonomous/safety_pkg/devel/setup.sh
+    local-name: /home/imlab/safety/devel/setup.sh

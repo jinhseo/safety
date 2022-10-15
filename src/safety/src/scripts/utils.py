@@ -71,11 +71,10 @@ def load_cw(cw_path, cw_txt):
         cw_utm = gps_to_utm(lat, long, 0)
         cw_node.append(cw_utm)
     return np.array(cw_node)
-
-def generate_windows(detected_obj_msg, ped_cam, ped_move, car_cam):
+'''def generate_windows(detected_obj_msg, ped_cam, ped_move, car_cam):
     if len(detected_obj_msg.detections) != 0:
             for d_object in detected_obj_msg.detections:
-                if 0 < d_object.results[0].score < 20:
+                #if 0 < d_object.results[0].score < 25:
                     if d_object.results[0].id == 0:
                         ped_cam.pop(0)
                         ped_move.pop(0)
@@ -105,11 +104,11 @@ def generate_windows(detected_obj_msg, ped_cam, ped_move, car_cam):
         car_cam.pop(0)
         car_cam.append(False)
     return ped_cam, ped_move, car_cam
-
+'''
 def generate_windows_v2(detected_obj_msg, ped_cam, car_cam, on_one_lane):
     if len(detected_obj_msg.detections) != 0:
             for d_object in detected_obj_msg.detections:
-                if 0 < d_object.results[0].score < 20:
+                if -999 < d_object.results[0].score < 20:
                     if d_object.results[0].id == 0:
                         ped_cam.pop(0)
                         ped_cam.append(True)

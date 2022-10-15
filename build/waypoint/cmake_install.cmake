@@ -1,8 +1,8 @@
-# Install script for directory: /home/imlab/Downloads/autonomous/safety_pkg/src/waypoint
+# Install script for directory: /home/imlab/safety/src/waypoint
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
-  set(CMAKE_INSTALL_PREFIX "/home/imlab/Downloads/autonomous/safety_pkg/install")
+  set(CMAKE_INSTALL_PREFIX "/home/imlab/safety/install")
 endif()
 string(REGEX REPLACE "/$" "" CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
 
@@ -38,17 +38,17 @@ if(NOT DEFINED CMAKE_CROSSCOMPILING)
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/pkgconfig" TYPE FILE FILES "/home/imlab/Downloads/autonomous/safety_pkg/build/waypoint/catkin_generated/installspace/waypoint.pc")
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/pkgconfig" TYPE FILE FILES "/home/imlab/safety/build/waypoint/catkin_generated/installspace/waypoint.pc")
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
   file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/waypoint/cmake" TYPE FILE FILES
-    "/home/imlab/Downloads/autonomous/safety_pkg/build/waypoint/catkin_generated/installspace/waypointConfig.cmake"
-    "/home/imlab/Downloads/autonomous/safety_pkg/build/waypoint/catkin_generated/installspace/waypointConfig-version.cmake"
+    "/home/imlab/safety/build/waypoint/catkin_generated/installspace/waypointConfig.cmake"
+    "/home/imlab/safety/build/waypoint/catkin_generated/installspace/waypointConfig-version.cmake"
     )
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/waypoint" TYPE FILE FILES "/home/imlab/Downloads/autonomous/safety_pkg/src/waypoint/package.xml")
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/waypoint" TYPE FILE FILES "/home/imlab/safety/src/waypoint/package.xml")
 endif()
 

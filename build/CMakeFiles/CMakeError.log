@@ -1,58 +1,55 @@
-Performing C SOURCE FILE Test CMAKE_HAVE_LIBC_PTHREAD failed with the following output:
-Change Dir: /home/imlab/Downloads/autonomous/safety_pkg/build/CMakeFiles/CMakeTmp
+Determining if the pthread_create exist failed with the following output:
+Change Dir: /home/imlab/safety/build/CMakeFiles/CMakeTmp
 
-Run Build Command(s):/bin/make cmTC_76716/fast && /bin/make -f CMakeFiles/cmTC_76716.dir/build.make CMakeFiles/cmTC_76716.dir/build
-make[1]: Entering directory '/home/imlab/Downloads/autonomous/safety_pkg/build/CMakeFiles/CMakeTmp'
-Building C object CMakeFiles/cmTC_76716.dir/src.c.o
-/bin/cc   -DCMAKE_HAVE_LIBC_PTHREAD   -o CMakeFiles/cmTC_76716.dir/src.c.o   -c /home/imlab/Downloads/autonomous/safety_pkg/build/CMakeFiles/CMakeTmp/src.c
-Linking C executable cmTC_76716
-/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_76716.dir/link.txt --verbose=1
-/bin/cc  -DCMAKE_HAVE_LIBC_PTHREAD    -rdynamic CMakeFiles/cmTC_76716.dir/src.c.o  -o cmTC_76716 
-/bin/ld: CMakeFiles/cmTC_76716.dir/src.c.o: in function `main':
-src.c:(.text+0x46): undefined reference to `pthread_create'
-/bin/ld: src.c:(.text+0x52): undefined reference to `pthread_detach'
-/bin/ld: src.c:(.text+0x63): undefined reference to `pthread_join'
+Run Build Command:"/usr/bin/make" "cmTC_d7e3c/fast"
+/usr/bin/make -f CMakeFiles/cmTC_d7e3c.dir/build.make CMakeFiles/cmTC_d7e3c.dir/build
+make[1]: Entering directory '/home/imlab/safety/build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_d7e3c.dir/CheckSymbolExists.c.o
+/usr/bin/cc    -o CMakeFiles/cmTC_d7e3c.dir/CheckSymbolExists.c.o   -c /home/imlab/safety/build/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_d7e3c
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_d7e3c.dir/link.txt --verbose=1
+/usr/bin/cc      -rdynamic CMakeFiles/cmTC_d7e3c.dir/CheckSymbolExists.c.o  -o cmTC_d7e3c 
+CMakeFiles/cmTC_d7e3c.dir/CheckSymbolExists.c.o: In function `main':
+CheckSymbolExists.c:(.text+0x1b): undefined reference to `pthread_create'
 collect2: error: ld returned 1 exit status
-make[1]: *** [CMakeFiles/cmTC_76716.dir/build.make:87: cmTC_76716] Error 1
-make[1]: Leaving directory '/home/imlab/Downloads/autonomous/safety_pkg/build/CMakeFiles/CMakeTmp'
-make: *** [Makefile:121: cmTC_76716/fast] Error 2
+CMakeFiles/cmTC_d7e3c.dir/build.make:97: recipe for target 'cmTC_d7e3c' failed
+make[1]: *** [cmTC_d7e3c] Error 1
+make[1]: Leaving directory '/home/imlab/safety/build/CMakeFiles/CMakeTmp'
+Makefile:126: recipe for target 'cmTC_d7e3c/fast' failed
+make: *** [cmTC_d7e3c/fast] Error 2
 
-
-Source file was:
+File /home/imlab/safety/build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
 #include <pthread.h>
 
-void* test_func(void* data)
+int main(int argc, char** argv)
 {
-  return data;
-}
-
-int main(void)
-{
-  pthread_t thread;
-  pthread_create(&thread, NULL, test_func, NULL);
-  pthread_detach(thread);
-  pthread_join(thread, NULL);
-  pthread_atfork(NULL, NULL, NULL);
-  pthread_exit(NULL);
-
+  (void)argv;
+#ifndef pthread_create
+  return ((int*)(&pthread_create))[argc];
+#else
+  (void)argc;
   return 0;
+#endif
 }
 
 Determining if the function pthread_create exists in the pthreads failed with the following output:
-Change Dir: /home/imlab/Downloads/autonomous/safety_pkg/build/CMakeFiles/CMakeTmp
+Change Dir: /home/imlab/safety/build/CMakeFiles/CMakeTmp
 
-Run Build Command(s):/bin/make cmTC_a1581/fast && /bin/make -f CMakeFiles/cmTC_a1581.dir/build.make CMakeFiles/cmTC_a1581.dir/build
-make[1]: Entering directory '/home/imlab/Downloads/autonomous/safety_pkg/build/CMakeFiles/CMakeTmp'
-Building C object CMakeFiles/cmTC_a1581.dir/CheckFunctionExists.c.o
-/bin/cc   -DCHECK_FUNCTION_EXISTS=pthread_create   -o CMakeFiles/cmTC_a1581.dir/CheckFunctionExists.c.o   -c /usr/share/cmake-3.16/Modules/CheckFunctionExists.c
-Linking C executable cmTC_a1581
-/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_a1581.dir/link.txt --verbose=1
-/bin/cc  -DCHECK_FUNCTION_EXISTS=pthread_create    -rdynamic CMakeFiles/cmTC_a1581.dir/CheckFunctionExists.c.o  -o cmTC_a1581  -lpthreads 
-/bin/ld: cannot find -lpthreads
+Run Build Command:"/usr/bin/make" "cmTC_29a7d/fast"
+/usr/bin/make -f CMakeFiles/cmTC_29a7d.dir/build.make CMakeFiles/cmTC_29a7d.dir/build
+make[1]: Entering directory '/home/imlab/safety/build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_29a7d.dir/CheckFunctionExists.c.o
+/usr/bin/cc   -DCHECK_FUNCTION_EXISTS=pthread_create   -o CMakeFiles/cmTC_29a7d.dir/CheckFunctionExists.c.o   -c /usr/share/cmake-3.10/Modules/CheckFunctionExists.c
+Linking C executable cmTC_29a7d
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_29a7d.dir/link.txt --verbose=1
+/usr/bin/cc  -DCHECK_FUNCTION_EXISTS=pthread_create    -rdynamic CMakeFiles/cmTC_29a7d.dir/CheckFunctionExists.c.o  -o cmTC_29a7d -lpthreads 
+/usr/bin/ld: cannot find -lpthreads
 collect2: error: ld returned 1 exit status
-make[1]: *** [CMakeFiles/cmTC_a1581.dir/build.make:87: cmTC_a1581] Error 1
-make[1]: Leaving directory '/home/imlab/Downloads/autonomous/safety_pkg/build/CMakeFiles/CMakeTmp'
-make: *** [Makefile:121: cmTC_a1581/fast] Error 2
-
+CMakeFiles/cmTC_29a7d.dir/build.make:97: recipe for target 'cmTC_29a7d' failed
+make[1]: *** [cmTC_29a7d] Error 1
+make[1]: Leaving directory '/home/imlab/safety/build/CMakeFiles/CMakeTmp'
+Makefile:126: recipe for target 'cmTC_29a7d/fast' failed
+make: *** [cmTC_29a7d/fast] Error 2
 
 

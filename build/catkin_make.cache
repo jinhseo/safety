@@ -1,2 +1,2 @@
 safety:waypoint:zone
--DCATKIN_DEVEL_PREFIX=/home/imlab/Downloads/autonomous/safety_pkg/devel -DCMAKE_INSTALL_PREFIX=/home/imlab/Downloads/autonomous/safety_pkg/install -G Unix Makefiles
+-DCATKIN_DEVEL_PREFIX=/home/imlab/safety/devel -DCMAKE_INSTALL_PREFIX=/home/imlab/safety/install -G Unix Makefiles
