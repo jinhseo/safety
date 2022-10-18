@@ -14,7 +14,7 @@ from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import Point, Quaternion, Vector3, Pose, PoseStamped, TransformStamped
 from scipy.spatial import distance
 from ackermann_msgs.msg import AckermannDriveStamped
-from utils import generate_front_zone, gps_to_utm, to_narray, load_cw, generate_windows_v2
+from utils import generate_front_zone, gps_to_utm, to_narray, load_cw, generate_windows_v2, target_object
 from geodesy.utm import fromLatLong as proj
 from tf2_geometry_msgs.tf2_geometry_msgs import do_transform_pose
 
@@ -41,36 +41,37 @@ class Safety:
         self.subs = []
         self.callbacks = []
 
-        self.ped_0_cam, self.ped_1_cam, self.ped_2_cam = [False] * 10, [False] * 10, [False] * 10
-        self.car_0_cam, self.car_1_cam, self.car_2_cam = [False] * 10, [False] * 10, [False] * 10
+        self.valid_person, self.valid_car = [], []
+
+        self.ped_0_cam, self.ped_1_cam, self.ped_2_cam = [False] * 30, [False] * 30, [False] * 30
+        self.car_0_cam, self.car_1_cam, self.car_2_cam = [False] * 30, [False] * 30, [False] * 30
         self.traffic_cam = [False] * 10
 
-        self.ped_on_cw_can = [False] * 50
+        self.ped_on_cw_can = [False] * 30
         self.ped_on_cw = False
 
         self.ped_all_cam = False
         self.car_all_cam = False
         self.traffic_sign = False
+        self.front_car = False
 
         self.stop_speed = 0.0
         self.slow_speed = 10.0
         self.orig_speed = 30.0
         self.voting_speed = [30.0, 30.0]
 
-        self.ped_stop_time, self.ped_stop_to_go_time = 0, 0
-        self.ped_stop_start, self.ped_stop_to_go = False, False
-        self.ped_disappear = False
-        self.car_stop_time, self.lane_change_time = 0, 0
-        self.car_stop_start, self.lane_change_start = False, False
-
-        self.traffic_slow_time = 0
-        self.traffic_slow_start = False
+        self.ped_stop_time, self.car_stop_time, self.lane_change_time, self.traffic_slow_time = 0, 0, 0, 0
+        self.ped_stop_start, self.car_stop_start, self.lane_change_start, self.traffic_slow_start = False, False, False, False
 
         self.lane_goal = 999
+        self.stop_min_dist = -999
         self.from_lane_change = -999
         self.lane_change_pos = 0
+
         self.cw_node = load_cw(cw_path, 'cross_node_v2.txt')
         self.one_node = load_cw(cw_path, 'one_lane.txt')
+        self.end_node = load_cw(cw_path, 'end_points.txt')
+
         subs = [self.sub_target_waypoint, self.sub_car_waypoint, self.sub_freespace, self.sub_can_data,
                 self.sub_detected_obj_0, self.sub_detected_obj_1, self.sub_detected_obj_2, self.sub_traffic_sign, self.sub_target_turnpoint]
         callbacks = [self.callback_target_waypoint, self.callback_car_waypoint, self.callback_freespace, self.callback_can_data,
@@ -126,7 +127,7 @@ class Safety:
         self.ped_speed, self.sign_speed, self.car_speed, self.cw_speed, self.safety_speed = 30, 30, 30, 30, 30
 
         if len(self.traffic_sign_msg.detections) != 0:
-            if self.traffic_sign_msg.detections[0].results[0].score > 0.8 and self.traffic_sign_msg.detections[0].bbox.center.x > 0.5:
+            if self.traffic_sign_msg.detections[0].results[0].score > 0.7 and self.traffic_sign_msg.detections[0].bbox.center.x > 0.5:
                 self.traffic_cam.pop(0)
                 self.traffic_cam.append(True)
             else:
@@ -149,6 +150,8 @@ class Safety:
 
         self.ped_all_cam = np.array([np.array(self.ped_0_cam).any(), np.array(self.ped_1_cam).any(), np.array(self.ped_2_cam).any()]).any()
         self.car_all_cam = np.array([np.array(self.car_0_cam).any(), np.array(self.car_1_cam).any(), np.array(self.car_2_cam).any()]).any()
+        self.valid_person, self.valid_car = [], []
+        self.valid_car, self.valid_person = target_object(self.detected_obj_2_msg, self.valid_car, self.valid_person)
 
         ### transform ###
         trans = TransformStamped()
@@ -176,6 +179,13 @@ class Safety:
             transformed_target_waypoints.append([x.pose.position.x, x.pose.position.y])
         waypoint = np.array(transformed_target_waypoints)
 
+        waypoints = np.array([transformed_target_waypoints])
+        waypoint = []
+        for i, wp in enumerate(waypoints[0]):
+            if i < waypoints.shape[1] - 1:
+                waypoint.append(self.getEquidistantPoints(waypoints[0][i], waypoints[0][i+1], 4))
+        waypoint = np.array(waypoint).reshape(len(waypoint)*5,2)
+
         transformed_cross_waypoints = []
         for cw in self.cw_node:
             marker1 = Marker()
@@ -193,27 +203,40 @@ class Safety:
 
         ### missions ###
         if self.freespace_msg is not None and self.target_waypoint_msg.markers:
-        #if True:
             lidar_pc = ros_numpy.point_cloud2.pointcloud2_to_array(self.freespace_msg)
             lidar_xyz = ros_numpy.point_cloud2.get_xyz_points(lidar_pc, remove_nans=True)
             freespace = lidar_xyz[:,:2]
 
             car_position = np.array([[self.car_waypoint_msg.pose.position.x, self.car_waypoint_msg.pose.position.y, self.car_waypoint_msg.pose.position.z]])[:,:2]
             car_cw_dist  = distance.cdist(car_position, self.cw_node[:,:2]).min()
-            car_cw_ind   = (distance.cdist(car_position, self.cw_node[:,:2]) < 40)[0].nonzero()[0]
+            if 2 not in self.target_turnpoint_msg.data[10:]:
+                car_cw_ind   = (distance.cdist(car_position, self.cw_node[:,:2]) < 30)[0].nonzero()[0]
+            elif 0 not in self.target_turnpoint_msg.data[10:]:
+                car_cw_ind   = (distance.cdist(car_position, self.cw_node[:,:2]) < 10)[0].nonzero()[0]
+            else:
+                car_cw_ind   = (distance.cdist(car_position, self.cw_node[:,:2]) < 20)[0].nonzero()[0]
+            #car_cw_ind   = (distance.cdist(car_position, self.cw_node[:,:2]) < 20)[0].nonzero()[0]
+
+
 
             ### find waypoint ###
-            #if waypoint.shape[0] != 0:
             waypoint_dist = distance.cdist(freespace, waypoint).min(0)
-            waypoint_cw_ind = (distance.cdist(waypoint, cw).min(0) < 2).nonzero()[0]
+            waypoint_cw_ind = (distance.cdist(waypoint, cw).min(0) < 3).nonzero()[0]
             candidate_cw, candidate_cw_ind = np.unique(np.concatenate((waypoint_cw_ind, car_cw_ind)), return_counts=True)
             near_cw = candidate_cw[candidate_cw_ind > 1]
             near_cws = np.unique((distance.cdist(cw[near_cw], cw) < 10).nonzero()[1])
-            #near_cws = np.unique(np.bitwise_and((distance.cdist(cw[near_cw], cw) < 10), (distance.cdist(cw[near_cw], cw) > 2)).nonzero()[1])
+
             try:
                 near_cw_group = near_cws.reshape(near_cws.shape[0]/10, 10)
             except:
                 near_cw_group = np.array([])
+
+            if near_cws.shape[0] > 10:
+                try:
+                    near_cws = near_cw_group[distance.cdist(cw[near_cw_group].reshape(-1,2), np.array([[0,0]])).argmin()/10]
+                except:
+                    near_cws = np.array([]).astype(np.int64)
+
             ### min_dist ###
             if (waypoint_dist<1).nonzero()[0].shape[0] != 0:
                 min_dist = round(distance.cdist(np.array([[0,0]]), np.array([waypoint[(waypoint_dist < 1).nonzero()[0].max()]])), 2)
@@ -223,7 +246,6 @@ class Safety:
             ### cw_speed ###
             if near_cws.shape[0] != 0:
                 cws_dist = distance.cdist(cw[near_cws], np.array([[0,0]]))
-                #near_cws_dist = cws_dist.min()
                 if cws_dist.min() < 5:
                     try:
                         near_cws_dist = cws_dist[(cws_dist > 5)].min()
@@ -231,24 +253,23 @@ class Safety:
                         near_cws_dist = cws_dist.min()
                 else:
                     near_cws_dist = cws_dist.min()
-                if 20 < near_cws_dist < 30:
-                    self.cw_speed = 15
-                elif near_cws_dist <= 20:
-                    self.cw_speed = 10
-                #self.cw_speed = 15 if near_cws_dist < 30 else 30
-                #self.cw_speed = current_speed - (30 - near_cws_dist)
+                if current_speed - (20 - near_cws_dist) > self.slow_speed:
+                    self.cw_speed = round(current_speed - (20 - near_cws_dist))
+                else:
+                    self.cw_speed = self.slow_speed
             else:
-                self.cw_speed = 30
+                near_cws_dist = -999
+                self.cw_speed = self.orig_speed
 
             ### safety speed ###
-            if 2 in self.target_turnpoint_msg.data and 0 < min_dist < 15: ### corner point
-                self.safety_speed = 30
-            elif 2 not in self.target_turnpoint_msg.data and 20 < min_dist < 40: ### straight point
-                self.safety_speed = 15
-            elif 2 not in self.target_turnpoint_msg.data and 0 < min_dist <= 20:
-                self.safety_speed = 10
+            if 2 in self.target_turnpoint_msg.data:       ### corner point
+                self.safety_speed = self.orig_speed
+            elif 2 not in self.target_turnpoint_msg.data: ### straight
+                self.safety_speed = round(current_speed - (40 - min_dist))
             else:
-                self.safety_speed = 30
+                self.safety_speed = self.orig_speed
+            if self.safety_speed < self.slow_speed:
+                self.safety_speed = self.slow_speed
 
             ### traffic sign ###
             current_time = rospy.Time.now().secs
@@ -265,16 +286,23 @@ class Safety:
                 self.traffic_slow_time = 0
                 self.traffic_cam = [False] * 10
             self.sign_speed = target_speed
-            #import IPython; IPython.embed()
-            ### pedestrian mission ###
-            if near_cws.shape[0] < 10:
-                cw_ped = distance.cdist(freespace, cw[near_cws]).min(0)
-            elif near_cws.shape[0] >= 10:
-                cw_ped = distance.cdist(freespace, cw[near_cws]).min(0)
-                #cw_ped = np.sort(distance.cdist(freespace, cw[near_cws]).min(0))[:10]
 
+            ### pedestrian mission ###
+            if near_cws.shape[0] != 0 and 2 in self.target_turnpoint_msg.data:
+                if 0 < near_cws_dist < 15:              ### corner crosswalk ###
+                    cw_ped = distance.cdist(freespace, cw[near_cws]).min(0)
+                else:
+                    cw_ped = np.array([])
+            elif near_cws.shape[0] != 0 and 0 in self.target_turnpoint_msg.data:
+                if 0 < near_cws_dist < 30:              ### straight crosswalk ###
+                    cw_ped = distance.cdist(freespace, cw[near_cws]).min(0)
+                else:
+                    cw_ped = np.array([])
+            else:
+                cw_ped = distance.cdist(freespace, cw[near_cws]).min(0)
+            '''
             if cw_ped.shape[0] != 0:
-                if cw_ped.max() > 0.3:
+                if cw_ped.max() > 0.3:                  ### threshold for pedestrian on crosswalk ###
                     self.ped_on_cw_can.pop(0)
                     self.ped_on_cw_can.append(True)
                 else:
@@ -284,11 +312,40 @@ class Safety:
                 self.ped_on_cw_can.pop(0)
                 self.ped_on_cw_can.append(False)
             self.ped_on_cw = np.array(self.ped_on_cw_can).any()
+            '''
+
+            if cw_ped.shape[0] != 0:
+                empty_cw = cw_ped.max() > 0.3
+                empty_cw_ind = cw_ped > 0.3
+
+                empty_cw_dist = distance.cdist(cw[near_cws][empty_cw_ind], np.array([[0,0]]))
+                if empty_cw:
+                    for v_p in self.valid_person:
+                        if 0 in empty_cw_ind or 1 in empty_cw_ind or 8 in empty_cw_ind or 9 in empty_cw_ind:
+                            if empty_cw_dist.min() - 3 < v_p < empty_cw_dist.max() + 3:
+                                self.ped_on_cw_can.pop(0)
+                                self.ped_on_cw_can.append(True)
+                        else:
+                            if empty_cw_dist.min() - 5 < v_p < empty_cw_dist.max() + 5:
+                                self.ped_on_cw_can.pop(0)
+                                self.ped_on_cw_can.append(True)
+                else:
+                    self.ped_on_cw_can.pop(0)
+                    self.ped_on_cw_can.append(False)
+            else:
+                self.ped_on_cw_can.pop(0)
+                self.ped_on_cw_can.append(False)
+            self.ped_on_cw = np.array(self.ped_on_cw_can).any()
+
 
             if near_cws.shape[0] != 0:
-                cw_ahead = 0 < near_cws_dist < 30
+                if 2 in self.target_turnpoint_msg.data[:10]:
+                    cw_ahead = 0 < near_cws_dist < 15
+                elif 0 in self.target_turnpoint_msg.data[:10]:
+                    cw_ahead = 0 < near_cws_dist < 30
             else:
                 cw_ahead = False
+
             print(self.ped_on_cw)
             print(self.ped_all_cam)
             print(cw_ahead)
@@ -298,42 +355,55 @@ class Safety:
                 if not self.ped_stop_start:
                     self.ped_stop_time = rospy.Time.now().secs
                     self.ped_stop_start = True
-            elif not np.array(self.ped_on_cw).any() and current_time - self.ped_stop_time > rospy.Time(3).secs:
+            elif not np.array(self.ped_on_cw).any() and current_time - self.ped_stop_time > 5: ### stop for 5 secs ###
                 target_speed = self.orig_speed
+            #elif not self.ped_on_cw and current_time - self.ped_stop_time > 30:
+            #    target_speed = self.stop_speed
             else:
                 target_speed = self.orig_speed
             self.ped_speed = target_speed
 
             ### car mission ###
+            #print(self.target_turnpoint_msg.data)
             obs_stop = False
-            print(self.target_turnpoint_msg.data)
-            if (2 in self.target_turnpoint_msg.data[:15]) and 0 < min_dist < 5:
+            if 2 not in self.target_turnpoint_msg.data[10:] and 0 < min_dist < 20:
                 obs_stop = True
-                #print('1')
-            elif (2 not in self.target_turnpoint_msg.data[:15]) and 0 < min_dist < 30:
+            elif 0 not in self.target_turnpoint_msg.data[10:] and 0 < min_dist < 5:
                 obs_stop = True
-                #print('2')
             else:
                 obs_stop = False
 
-            #print(obs_stop)
-            #print(self.lane_change_start)
-            #print(lane_change)
-            if self.to_narray(self.target_waypoint_msg.markers).shape[0] < 20:
+            if obs_stop and current_speed == 0:
+                self.stop_min_dist = min_dist
+            if obs_stop and self.stop_min_dist + 20 < min_dist:                             ### if it moves 20 m
+                obs_stop = False
+
+            if self.to_narray(self.target_waypoint_msg.markers).shape[0] < 20:              ### exceptions for lane change ###
                 self.lane_change_start = False
             if on_one_lane:
                 self.lane_change_start = False
+            if distance.cdist(self.end_node[:,:2], car_position).item() < 30:
+                self.lane_change_start = False
+
+            print(self.car_stop_time)
             if obs_stop and not self.lane_change_start:
                 target_speed = self.stop_speed
-                if self.car_all_cam and not self.car_stop_start:
+                if self.detected_obj_0_msg.detections:
+                    for detected_obj in self.detected_obj_0_msg.detections:
+                        if detected_obj.results[0].score - 5 < min_dist < detected_obj.results[0].score + 5 and (detected_obj.results[0].id == 2 or detected_obj.results[0].id == 7):
+                            self.front_car = True
+                        else:
+                            self.front_car = False
+                if np.array(self.car_0_cam).any() and not self.car_stop_start and self.front_car:
                     self.car_stop_time = rospy.Time.now().secs
                     self.car_stop_start = True
+                elif not self.front_car:
+                    self.car_stop_time = rospy.Time.now().secs
                 elif self.car_stop_start and current_time - self.car_stop_time > 10:
                     target_speed = self.orig_speed
                     self.lane_goal = min_dist + 5 + 5
                     self.lane_change_pos = self.to_narray(self.target_waypoint_msg.markers)[:,: 2][0]
                     self.car_stop_start = False
-                    self.lane_change_time = rospy.Time.now().secs
                     self.lane_change_start = True
             elif self.lane_change_start:
                 self.from_lane_change = distance.cdist(car_position, np.expand_dims(self.lane_change_pos,0))[0][0]
@@ -350,11 +420,14 @@ class Safety:
             else:
                 target_speed = self.orig_speed
                 self.car_stop_start = False
+                self.car_stop_time = 0
+                self.front_car = False
             self.car_speed = target_speed
-            print(min_dist)
+            print('min_dist:   ' + str(min_dist))
+
             ### publish topics ###
             publish_speed = min([self.sign_speed, self.ped_speed, self.car_speed, self.cw_speed, self.safety_speed])
-            if self.to_narray(self.target_waypoint_msg.markers).shape[0] < 20:
+            if 0 < self.to_narray(self.target_waypoint_msg.markers).shape[0] < 20:
                 publish_speed = 30
             self.voting_speed.pop(0)
             self.voting_speed.append(publish_speed)
@@ -369,8 +442,8 @@ class Safety:
             print([self.sign_speed, self.ped_speed, self.car_speed, self.cw_speed, self.safety_speed])
         else:
             print('set target waypoint')
-            print(self.to_narray(self.target_waypoint_msg.markers).shape[0])
             rospy.logwarn("set target waypoint")
+
 if __name__ == '__main__':
     rospy.init_node('freespace_vis_v3', anonymous=True)
     publish_rate      = rospy.get_param('~publish_rate' ,     10)
@@ -391,8 +464,8 @@ if __name__ == '__main__':
     traffic_obj = '/camera1/traffic_sign'
 
     #cw_path = os.path.join(rospkg.RosPack().get_path('safety'))
-    cw_path = '/home/imlab/safety/src/safety/src/scripts'
-    #cw_path = '/safety/src/safety/src/scripts'
+    #cw_path = '/home/imlab/safety/src/safety/src/scripts'
+    cw_path = '/safety/src/safety/src/scripts'
     publisher = Safety(publish_rate, freespace, target_waypoint, car, can_data,
                        dist_obj_0, dist_obj_1, dist_obj_2, traffic_obj, cw_path, target_turnpoint, frame_id)
 

@@ -108,7 +108,7 @@ def load_cw(cw_path, cw_txt):
 def generate_windows_v2(detected_obj_msg, ped_cam, car_cam, on_one_lane):
     if len(detected_obj_msg.detections) != 0:
             for d_object in detected_obj_msg.detections:
-                if -999 < d_object.results[0].score < 20:
+                if 0 < d_object.results[0].score < 20:
                     if d_object.results[0].id == 0:
                         ped_cam.pop(0)
                         ped_cam.append(True)
@@ -142,3 +142,13 @@ def generate_windows_v2(detected_obj_msg, ped_cam, car_cam, on_one_lane):
         car_cam.pop(0)
         car_cam.append(False)
     return ped_cam, car_cam
+
+def target_object(detected_obj_msg, valid_car, valid_person):
+    if len(detected_obj_msg.detections) != 0:
+        for d_object in detected_obj_msg.detections:
+            if 0 < d_object.results[0].score < 20:
+                if d_object.results[0].id == 2 or d_object.results[0].id == 7:
+                    valid_car.append(d_object.results[0].score)
+                if d_object.results[0].id == 0:
+                    valid_person.append(d_object.results[0].score)
+    return valid_car, valid_person
