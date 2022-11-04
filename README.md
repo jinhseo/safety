@@ -6,5 +6,5 @@ cd src/launch
 roslaunch safety_imcar.launch  
 ```
 Define target waypoint via rviz.  
-* safety/drive/speed : target speed (30/10/0)
+* safety/drive/speed : target speed (Max = 30)
 * safety/drive/jerk  : lane change  (0 = False, 1 = True) 
