@@ -20,12 +20,6 @@ def generate_front_zone(front_offset, wide_zone):
         front_X, front_Y = np.meshgrid(front_x, front_y)
         f_zone = np.concatenate((front_X.flatten(), front_Y.flatten()), axis=0).reshape(2, front_h * interval * front_w * interval)
     else:
-        #theta = np.linspace(0, np.pi, 180)
-        #r = 10
-        #x1 = r*np.cos(theta)
-        #x2 = r*np.sin(theta)
-        #circle_zone = np.reshape(np.concatenate((x1, x2), axis=0), (180, 2), order='F')
-        #import IPython; IPython.embed()
         front_x = np.linspace(front_offset, front_offset + 15, 15 * 3) ### 5 is interval
         front_y = np.linspace(-15, 15, 15 * 3)
         front_X, front_Y = np.meshgrid(front_x, front_y)
