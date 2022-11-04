@@ -66,8 +66,6 @@ class Safety:
                         self.collect_dist.remove(dist)
                 estim_speed = self.collect_dist[-1] - self.collect_dist[0]
                 self.start_time = rospy.Time.now().secs
-                #if estim_speed > 10 or estim_speed < -10:
-                #    import IPython; IPython.embed()
                 self.collect_dist = []
             ### speed ###
 
