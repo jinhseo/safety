@@ -119,7 +119,6 @@ class Safety:
     def callback(self, *args):
         for i, callback in enumerate(self.callbacks):
             callback(args[i])
-        #safety_zone_msg = PointCloud2()
         safety_msg = AckermannDriveStamped()
         target_speed = self.orig_speed
         current_speed = self.can_data_msg.drive.speed
