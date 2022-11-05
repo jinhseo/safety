@@ -110,7 +110,7 @@ def generate_windows_v2(detected_obj_msg, ped_cam, car_cam, on_one_lane):
                         car_cam.append(False)
                     if d_object.results[0].id == 2:
                         if on_one_lane:
-                            if d_object.bbox.center.x > 0.3 and d_object.bbox.center.x < 0.7:
+                            if d_object.bbox.center.x > 0.4 and d_object.bbox.center.x < 0.8:
                                 car_cam.pop(0)
                                 car_cam.append(True)
                                 ped_cam.pop(0)
