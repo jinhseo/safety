@@ -5,7 +5,7 @@ from geodesy.utm import fromLatLong as proj
 front_h, front_w = 10, 5
 left_h,  left_w  = 5, 3
 right_h, right_w = 5, 3
-interval = 10
+interval = 15
 front_offset = 2
 left_offset  = 1
 right_offset = 1
