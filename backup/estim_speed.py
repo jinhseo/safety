@@ -71,7 +71,7 @@ class Safety:
 
             ### curve ###
             change = self.collect_yaw[-1] - self.collect_yaw[0]
-            if change < 10:
+            if change < 15:
                 print('straight')
             else:
                 print('curve')
