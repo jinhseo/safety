@@ -398,7 +398,7 @@ class Safety:
                     self.car_stop_start = True
                 elif not self.front_car:
                     self.car_stop_time = rospy.Time.now().secs
-                elif self.car_stop_start and current_time - self.car_stop_time > 10:
+                elif self.car_stop_start and current_time - self.car_stop_time > 15:
                     target_speed = self.orig_speed
                     self.lane_goal = min_dist + 5 + 5
                     self.lane_change_pos = self.to_narray(self.target_waypoint_msg.markers)[:,: 2][0]
